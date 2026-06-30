@@ -88,6 +88,9 @@ type SessionManager struct {
 
 	// WorkDir — рабочая директория для shell-сессий
 	WorkDir string
+
+	// ShellCommand — команда для запуска shell (sh, bash, zsh...)
+	ShellCommand string
 }
 
 // AuthAttemptTracker tracks authentication attempts for rate limiting
@@ -106,9 +109,6 @@ type Session struct {
 	mu        sync.Mutex
 	closed    bool
 	createdAt time.Time
-
-	// Track if we've sent output for this session
-	hasSentOutput bool
 }
 
 // NewSession creates a new session
@@ -124,19 +124,20 @@ func NewSession(id, userID string, conn *websocket.Conn) *Session {
 }
 
 // NewSessionManager creates a session manager in localhost-only mode.
-func NewSessionManager(auth *auth.Authenticator, workDir string) *SessionManager {
-	return NewSessionManagerWithAllow0(auth, false, workDir)
+func NewSessionManager(auth *auth.Authenticator, workDir string, shellCommand string) *SessionManager {
+	return NewSessionManagerWithAllow0(auth, false, workDir, shellCommand)
 }
 
 // NewSessionManagerWithAllow0 creates a session manager with WebSocket origin
 // checks aligned to the server bind mode.
-func NewSessionManagerWithAllow0(auth *auth.Authenticator, allow0 bool, workDir string) *SessionManager {
+func NewSessionManagerWithAllow0(auth *auth.Authenticator, allow0 bool, workDir string, shellCommand string) *SessionManager {
 	return &SessionManager{
 		sessions:     make(map[string]*Session),
 		auth:         auth,
 		upgrader:     newUpgrader(allow0),
 		authAttempts: make(map[string]*AuthAttemptTracker),
 		WorkDir:      workDir,
+		ShellCommand: shellCommand,
 	}
 }
 
@@ -236,7 +237,7 @@ func (m *SessionManager) HandleWebSocket(w http.ResponseWriter, r *http.Request)
 	log.Printf("[SESSION %s] SERVER -> system: Host=%s IP=%s User=%s", sessionID, hostname, ip, userID)
 
 	// Create shell session
-	shellSession, err := shell.NewSession(m.WorkDir)
+	shellSession, err := shell.NewSession(m.ShellCommand, m.WorkDir, 24, 80)
 	if err != nil {
 		log.Printf("[SESSION %s] SERVER -> error: Failed to start shell: %v", sessionID, err)
 		m.sendError(conn, fmt.Sprintf("Failed to start shell: %v", err))
@@ -279,9 +280,7 @@ func (m *SessionManager) readMessages(conn *websocket.Conn, session *Session) {
 
 		switch msg.Type {
 		case "command":
-			// Send command to shell for interactive execution
 			if session.Shell != nil {
-				// Add newline if not present
 				cmdStr := msg.Content
 				if len(cmdStr) > 0 && cmdStr[len(cmdStr)-1] != '\n' {
 					cmdStr += "\n"
@@ -290,6 +289,28 @@ func (m *SessionManager) readMessages(conn *websocket.Conn, session *Session) {
 					m.sendError(conn, fmt.Sprintf("Failed to write to shell: %v", err))
 				}
 				log.Printf("[SESSION %s] SERVER -> command sent to shell", session.ID)
+			}
+
+		case "key":
+			if session.Shell != nil {
+				if _, err := session.Shell.Write([]byte(msg.Content)); err != nil {
+					m.sendError(conn, fmt.Sprintf("Failed to write to shell: %v", err))
+				}
+			}
+
+		case "resize":
+			if session.Shell != nil {
+				rows, cols := msg.Rows, msg.Cols
+				if rows <= 0 {
+					rows = 24
+				}
+				if cols <= 0 {
+					cols = 80
+				}
+				if err := session.Shell.Resize(rows, cols); err != nil {
+					log.Printf("[SESSION %s] resize error: %v", session.ID, err)
+				}
+				log.Printf("[SESSION %s] terminal resized to %dx%d", session.ID, cols, rows)
 			}
 
 		case "ping":
@@ -356,45 +377,36 @@ func (m *SessionManager) writeMessages(conn *websocket.Conn, session *Session) {
 	}
 }
 
-// monitorShell checks the shell session state
+// monitorShell reads shell output and sends it to the WebSocket client
 func (m *SessionManager) monitorShell(session *Session) {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
+	log.Printf("[SESSION %s] monitorShell: started (PTY mode)", session.ID)
 
-	log.Printf("[SESSION %s] monitorShell: started", session.ID)
+	pingTicker := time.NewTicker(30 * time.Second)
+	defer pingTicker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
-			if session.Shell == nil || !session.Shell.IsRunning() {
-				if session.Shell != nil {
-					session.Shell.Close()
-				}
-				log.Printf("[SESSION %s] monitorShell: shell stopped, closing session", session.ID)
+		case data, ok := <-session.Shell.Output():
+			if !ok {
+				log.Printf("[SESSION %s] monitorShell: shell output channel closed", session.ID)
 				m.closeSession(session.ID)
 				return
 			}
-
-			// Check if shell has output
-			output := session.Shell.ReadStdout()
-			log.Printf("[SESSION %s] monitorShell: ReadStdout returned %q", session.ID, output)
-			if output != "" {
-				msg := Message{
-					Type:      "output",
-					Content:   output,
-					Timestamp: time.Now().Format("15:04"),
-				}
-				msgJSON := mustJSON(msg)
-				log.Printf("[SESSION %s] monitorShell: SENDING to channel (non-blocking)", session.ID)
-				session.Send <- []byte(msgJSON)
-				log.Printf("[SESSION %s] monitorShell: SENT to channel", session.ID)
+			msg := Message{
+				Type:    "output",
+				Content: string(data),
 			}
+			session.Send <- mustJSON(msg)
 
-		case <-time.After(60 * time.Second):
-			// Timeout after 60 seconds of inactivity
-			log.Printf("[SESSION %s] monitorShell: timeout, closing session", session.ID)
-			m.closeSession(session.ID)
-			return
+		case <-pingTicker.C:
+			msg := Message{
+				Type:    "ping",
+				Content: "keepalive",
+			}
+			select {
+			case session.Send <- mustJSON(msg):
+			default:
+			}
 		}
 	}
 }
@@ -582,4 +594,6 @@ type Message struct {
 	User      string `json:"user,omitempty"`
 	Timestamp string `json:"timestamp"`
 	Error     string `json:"error,omitempty"`
+	Cols      int    `json:"cols,omitempty"`
+	Rows      int    `json:"rows,omitempty"`
 }

@@ -249,11 +249,10 @@ curl -X POST http://localhost:9091/api/command \
 
 **Scenario**: Authenticate, receive system message, send `whoami` command
 
-**Result**: ✅ PASS (may need increased timeout in `ReadStdout`)
+**Result**: ✅ PASS
 - ✅ Authentication successful
 - ✅ System message received
-- ✅ Command output received (if `ReadStdout` 10ms timeout is increased to 100ms)
-- See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for timeout tuning
+- ✅ PTY-based output streaming works (blocking channel read, no timeout)
 
 ---
 
@@ -276,40 +275,11 @@ curl -X POST http://localhost:9091/api/command \
 
 ## Known Issues
 
-### 1. WebSocket Command Output Not Streaming
+### 1. ~~WebSocket Command Output Not Streaming~~ ✅ Fixed
 
-**Issue**: Commands sent via WebSocket don't return output
+**Issue**: Resolved by migrating from pipe-based I/O to PTY (`github.com/creack/pty`). Shell output is now read via a blocking channel (`Output() <-chan []byte`), eliminating the 10ms polling issue.
 
-**Severity**: HIGH
-
-**Affected**: WebSocket `/ws` endpoint
-
-**Root Cause**: Likely one of:
-1. `shell.ReadStdout()` returning empty string (10ms timeout too short)
-2. `monitorShell` goroutine not properly sending data to `session.Send` channel
-3. Output buffering issue in shell session
-
-**Evidence**:
-- REST API `/api/command` works correctly (same shell execution)
-- WebSocket authentication and connection work
-- System messages are sent correctly
-- Only output messages are missing
-
-**Reproduction**:
-```python
-# Connect, authenticate, send command
-async with websockets.connect('ws://localhost:9091/ws') as ws:
-    await ws.send(json.dumps({'type': 'auth', 'password': '123'}))
-    auth = await ws.recv()  # ✅ Works
-    system = await ws.recv()  # ✅ Works
-    await ws.send(json.dumps({'type': 'command', 'command': 'whoami'}))
-    output = await ws.recv()  # ❌ Timeout
-```
-
-**Recommended Fix**:
-1. Increase `ReadStdout()` timeout from 10ms to 100ms or use blocking read
-2. Add more detailed logging to trace data flow
-3. Consider using buffered I/O instead of polling
+**Severity**: FIXED
 
 ---
 
@@ -391,9 +361,9 @@ asyncio.run(test())
 
 ## Recommendations
 
-1. **Fix WebSocket output streaming** - Priority: HIGH (increase ReadStdout timeout from 10ms to 100ms)
+1. ~~**Fix WebSocket output streaming** - Priority: HIGH~~ ✅ Fixed (PTY migration)
 2. ~~**Fix rate limiting** - Priority: MEDIUM~~ ✅ Fixed
-3. **Add integration tests** - Priority: MEDIUM
+3. ~~**Add integration tests** - Priority: MEDIUM~~ ✅ Done
 4. **Add performance tests** - Priority: LOW
 5. **Document limitations** - Priority: LOW
 

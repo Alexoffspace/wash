@@ -2,12 +2,15 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,7 +21,9 @@ import (
 )
 
 //go:embed templates/*
-var templateFS embed.FS
+//go:embed static/*
+//go:embed static/fonts/*
+var embedFS embed.FS
 
 var (
 	// Auth token for API access (comma-separated for multiple)
@@ -83,11 +88,13 @@ func main() {
 	}
 	a := auth.NewAuthenticator(tokens, *enableOSAuth)
 
-	// Определяем рабочую директорию для shell-сессий
+	// Определяем рабочую директорию и shell для shell-сессий
 	workDir := resolveWorkDir(cfg)
+	shellCommand := resolveShellCommand(cfg)
 	log.Printf("Work directory: %s", workDir)
+	log.Printf("Shell command: %s", shellCommand)
 
-	sessionManager := ws.NewSessionManagerWithAllow0(a, *allow0, workDir)
+	sessionManager := ws.NewSessionManagerWithAllow0(a, *allow0, workDir, shellCommand)
 	apiHandler := api.NewHandler(tokens, a, workDir)
 
 	// Определяем адрес для прослушивания: allow_0=true => все интерфейсы,
@@ -126,13 +133,38 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
-		file, err := templateFS.ReadFile("templates/index.html")
+		file, err := embedFS.ReadFile("templates/index.html")
 		if err != nil {
 			http.Error(w, "Template not found", http.StatusInternalServerError)
 			return
 		}
+
+		lightBgs, _ := embedFS.ReadDir("static/backgrounds/light")
+		darkBgs, _ := embedFS.ReadDir("static/backgrounds/dark")
+
+		var lightFiles, darkFiles []string
+		for _, f := range lightBgs {
+			if !f.IsDir() && isImageFile(f.Name()) {
+				lightFiles = append(lightFiles, f.Name())
+			}
+		}
+		for _, f := range darkBgs {
+			if !f.IsDir() && isImageFile(f.Name()) {
+				darkFiles = append(darkFiles, f.Name())
+			}
+		}
+
+		lightJSON, _ := json.Marshal(lightFiles)
+		darkJSON, _ := json.Marshal(darkFiles)
+
+		script := fmt.Sprintf(
+			`<script>window.__lightBgs=%s;window.__darkBgs=%s;</script>`,
+			lightJSON, darkJSON,
+		)
+		html := strings.ReplaceAll(string(file), "</head>", script+"</head>")
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(file)
+		w.Write([]byte(html))
 	})
 
 	// WebSocket endpoint
@@ -143,9 +175,18 @@ func main() {
 	// REST API
 	apiHandler.RegisterRoutes(mux)
 
-	// Static files (CSS, JS)
+	// Register MIME types for embedded static files
+	mime.AddExtensionType(".js", "application/javascript")
+	mime.AddExtensionType(".css", "text/css")
+	mime.AddExtensionType(".ttf", "font/ttf")
+	mime.AddExtensionType(".jpg", "image/jpeg")
+	mime.AddExtensionType(".jpeg", "image/jpeg")
+	mime.AddExtensionType(".png", "image/png")
+	mime.AddExtensionType(".webp", "image/webp")
+
+	// Static files (CSS, JS) — embedded
 	mux.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
-		http.FileServer(http.Dir("static")).ServeHTTP(w, r)
+		http.FileServer(http.FS(embedFS)).ServeHTTP(w, r)
 	})
 
 	server := &http.Server{
@@ -226,4 +267,25 @@ func resolveWorkDir(cfg *config.Config) string {
 		return ""
 	}
 	return homeDir
+}
+
+// resolveShellCommand возвращает команду shell из конфига или "sh"
+func resolveShellCommand(cfg *config.Config) string {
+	if cfg != nil && cfg.ShellCommand != "" {
+		return cfg.ShellCommand
+	}
+	return "sh"
+}
+
+func isImageFile(name string) bool {
+	idx := strings.LastIndex(name, ".")
+	if idx == -1 {
+		return false
+	}
+	ext := strings.ToLower(name[idx+1:])
+	switch ext {
+	case "jpg", "jpeg", "png", "webp":
+		return true
+	}
+	return false
 }

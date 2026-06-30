@@ -172,7 +172,7 @@ const ws = new WebSocket('ws://localhost:9091/ws');
 }
 ```
 
-**Receive Output**:
+**Receive Output** (raw PTY data with ANSI):
 ```json
 {
   "type": "output",
@@ -181,10 +181,27 @@ const ws = new WebSocket('ws://localhost:9091/ws');
 }
 ```
 
+**Send Keystroke** (PTY, recommended):
+```json
+{
+  "type": "key",
+  "content": "whoami\n"
+}
+```
+
+**Resize Terminal**:
+```json
+{
+  "type": "resize",
+  "cols": 120,
+  "rows": 40
+}
+```
+
 **Other Messages**:
 - `system` - System notifications
 - `error` - Error messages
-- `ping` - Keep-alive (respond with `pong`)
+- `ping` - Server keepalive (respond with `pong`)
 
 ---
 
@@ -278,7 +295,7 @@ curl -u "username:password" http://localhost:9091/api/command \
 | Aspect | Limit |
 |--------|-------|
 | Command size | Unlimited |
-| Output buffer | 4096 bytes per read |
+| Output buffer | 4096 bytes per PTY read (channel buffer: 256 messages) |
 | WebSocket buffer | 4096 bytes (read/write) |
 | Send channel | 100 messages |
 | Auth timeout | 5 seconds |

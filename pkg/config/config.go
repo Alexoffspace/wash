@@ -27,6 +27,10 @@ type Config struct {
 	// WorkDir - рабочая директория для shell-сессий и команд
 	// Если не указана, используется home-директория пользователя
 	WorkDir string `yaml:"work_dir"`
+
+	// ShellCommand - команда для запуска shell-сессии
+	// Если не указана, используется "sh"
+	ShellCommand string `yaml:"shell"`
 }
 
 // LoadConfig пытается загрузить конфигурацию из config.yaml

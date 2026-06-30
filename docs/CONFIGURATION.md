@@ -44,6 +44,7 @@ allow_0: false
 | `port` | integer | `8080` | HTTP server port |
 | `allow_0` | boolean | `false` | Listen on all interfaces (0.0.0.0) instead of localhost (127.0.0.1) |
 | `work_dir` | string | `""` | Working directory for shell sessions and commands (default: user's home directory) |
+| `shell` | string | `sh` | Shell command for PTY sessions (e.g., bash, zsh, fish). On Windows use full path: `C:\Program Files\Git\bin\bash.exe` |
 
 ## .env
 

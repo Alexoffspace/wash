@@ -255,11 +255,28 @@ Sends a command to the interactive shell session.
 }
 ```
 
-**Notes**:
-- Commands are executed in an interactive shell session
-- Newline is automatically appended if not present
-- Multiple commands can be sent sequentially
-- Command output is streamed back via `output` messages
+**Note**: The shell uses a PTY (pseudo-terminal). Output is streamed in real time with ANSI escape codes. Clients should use a terminal emulator like xterm.js.
+
+##### `key` - Keystroke (PTY, recommended)
+Sends raw keystrokes to the PTY shell. Used by xterm.js for full terminal interaction.
+
+```json
+{
+  "type": "key",
+  "content": "whoami\n"
+}
+```
+
+##### `resize` - Terminal Resize
+Informs the server of terminal size changes (rows/cols). Sent by xterm.js on window resize.
+
+```json
+{
+  "type": "resize",
+  "cols": 120,
+  "rows": 40
+}
+```
 
 ##### `ping` - Keepalive
 Sends a ping to keep the connection alive.
@@ -329,9 +346,9 @@ Sent when the shell produces output.
 ```
 
 **Notes**:
-- Output is streamed in chunks as it becomes available
-- May contain multiple lines
-- Includes both stdout and stderr
+- Output is raw PTY data with ANSI escape sequences
+- Client should use a terminal emulator (xterm.js) to render properly
+- Contains both stdout and stderr (merged via PTY)
 - Timestamp shows when output was captured
 
 ##### `error` - Error Message
@@ -407,8 +424,8 @@ asyncio.run(example())
 
 ### Authentication
 
-- **Tokens** are stored in the `WASH_TOKEN` environment variable
-- **OS Authentication** uses the system's authentication mechanism (PAM on Linux)
+- **Tokens** are stored in the `WASH_TOKEN` environment variable (loaded from `.env` or config)
+- **OS Authentication** uses the system's authentication mechanism (`su` on Linux, PowerShell on Windows)
 - Credentials are **not** transmitted in plaintext over HTTP (use HTTPS in production)
 
 ### Rate Limiting
@@ -443,11 +460,20 @@ asyncio.run(example())
 ./WASH -os-auth -port=8080
 ```
 
-- `-os-auth` - Enable OS authentication (PAM)
+- `-os-auth` - Enable OS authentication (PAM/su)
 - `-token` - Comma-separated list of valid auth tokens
 - `-allow-0` - Listen on all network interfaces (`0.0.0.0`)
 - `-max-msg-size` - Maximum WebSocket message size in bytes (default: 1048576 / 1 MB)
 - `-port` - Server port (default: 8080)
+
+### Config File Options (config.yaml)
+
+See [CONFIGURATION.md](CONFIGURATION.md) for details. Key options:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `shell` | string | `sh` | Shell command for PTY sessions (bash, zsh, fish, etc.) |
+| `work_dir` | string | `""` | Working directory (default: user's home) |
 
 ---
 
@@ -479,7 +505,7 @@ asyncio.run(example())
 | Aspect | Limit | Notes |
 |--------|-------|-------|
 | Command size | Unlimited | Implementation dependent |
-| Output buffer | 4096 bytes per read | Streamed in chunks |
+| Output buffer | 4096 bytes per PTY read | Streamed in chunks via channel (buffer: 256 messages) |
 | WebSocket buffer | 4096 bytes | Read/write buffers |
 | Send channel buffer | 100 messages | Prevents blocking |
 | Auth timeout | 5 seconds | First message deadline |

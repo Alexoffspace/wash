@@ -186,10 +186,11 @@ WAShell/
 ├── pkg/
 │   ├── api/             # REST API handlers
 │   ├── auth/            # Authentication logic
-│   ├── shell/           # Shell session management
-│   └── ws/              # WebSocket handlers
+│   ├── shell/           # PTY-based shell sessions
+│   └── ws/              # WebSocket + PTY I/O
+├── static/              # Embedded static files (xterm.js, CSS, fonts)
 └── templates/
-    └── index.html       # Web UI
+    └── index.html       # Web UI (xterm.js terminal)
 ```
 
 ---
@@ -198,11 +199,13 @@ WAShell/
 
 - 🔐 **Dual Authentication**: Token-based + OS user/password
 - 🌐 **Two Interfaces**: REST API + WebSocket
-- 🔄 **Interactive Sessions**: Full-duplex shell via WebSocket
+- 🔄 **Interactive Sessions**: Full PTY-based shell via WebSocket (xterm.js)
 - 📊 **System Info**: CPU, memory, disk, uptime
 - 🛡️ **CORS Protection**: Origin validation
-- 🔌 **Keep-Alive**: Ping/pong messages
+- 🔌 **Keep-Alive**: Ping/pong messages every 30s
 - 📝 **Logging**: Detailed debug logs
+- ⚙️ **Configurable shell**: sh, bash, zsh, fish via config.yaml
+- 🖼️ **Background images**: Random backgrounds for light/dark themes
 
 ---
 

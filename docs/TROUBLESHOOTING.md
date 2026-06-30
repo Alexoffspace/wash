@@ -2,39 +2,9 @@
 
 ## Common Issues
 
-### 1. WebSocket Commands Don't Return Output
+### 1. ~~WebSocket Commands Don't Return Output~~ ✅ Fixed
 
-**Symptom**: 
-- WebSocket connection works (auth successful)
-- Commands are sent without error
-- No output is received (timeout)
-- REST API `/api/command` works fine
-
-**Root Cause**: 
-The `monitorShell` goroutine uses a 10ms timeout when reading shell output, which is too short. Output may not be available in that window, resulting in empty reads.
-
-**Solution**:
-
-Edit `pkg/shell/shell.go` and increase the timeout in `ReadStdout()`:
-
-```go
-// Before (line 104):
-case <-time.After(10 * time.Millisecond):
-
-// After:
-case <-time.After(100 * time.Millisecond):
-```
-
-Then rebuild and restart:
-```bash
-go build -o WASH
-./WASH -os-auth -port=9091
-```
-
-**Alternative**: Use blocking read instead of polling (requires refactoring):
-```go
-// Use io.ReadAll or bufio.Scanner for blocking reads
-```
+**Status**: Fixed. Shell now uses PTY (`github.com/creack/pty`) instead of pipes. Output is read via a blocking channel (`Output() <-chan []byte`), eliminating the 10ms timeout issue. The web UI uses xterm.js for full terminal emulation with ANSI support.
 
 ---
 
@@ -184,30 +154,19 @@ pkill -9 WASH
 
 ---
 
-### 9. Commands with Special Characters Fail
+### 9. Custom Shell Not Working
 
-**Symptom**:
-```json
-{
-  "error": "command execution failed"
-}
+Check the `shell` setting in `config.yaml`:
+
+```yaml
+# The shell must be in PATH or use full path
+shell: zsh    # works if zsh is in PATH
+
+# On Windows use full path:
+# shell: C:\Program Files\Git\bin\bash.exe
 ```
 
-**Solution**:
-Properly escape JSON strings:
-```bash
-# Before (wrong):
-curl -X POST http://localhost:9091/api/command \
-  -d '{"command": "echo "hello""}'
-
-# After (correct):
-curl -X POST http://localhost:9091/api/command \
-  -d '{"command": "echo \"hello\""}'
-
-# Or use jq:
-curl -X POST http://localhost:9091/api/command \
-  -d "$(jq -n --arg cmd 'echo "hello"' '{command: $cmd}')"
-```
+Also ensure the shell supports non-interactive PTY mode (most modern shells do).
 
 ---
 
@@ -241,7 +200,7 @@ The server logs to stdout. Capture logs:
 Look for:
 - `[SESSION ...]` messages for WebSocket sessions
 - `shell:` messages for shell operations
-- `WebSocket` messages for connection issues
+- `monitorShell:` messages for PTY output streaming
 
 ### Test with curl
 
@@ -297,15 +256,18 @@ Send: make(chan []byte, 100)
 Send: make(chan []byte, 1000)
 ```
 
-### Increase Shell Output Read Timeout
+### Increase Shell Output Buffer
 
-In `pkg/shell/shell.go` (line 104):
+The PTY output channel has a buffer of 256 messages. In `pkg/shell/shell.go`:
 ```go
-// Before:
-case <-time.After(10 * time.Millisecond):
+output := make(chan []byte, 256) // increase for high throughput
+```
 
-// After:
-case <-time.After(500 * time.Millisecond):
+### Increase PTY Read Buffer
+
+In `pkg/shell/shell.go` (readLoop):
+```go
+buf := make([]byte, 4096) // increase to 65536 for large outputs
 ```
 
 ### Increase Max Message Size
@@ -328,9 +290,9 @@ Command-line flag:
 
 ## Known Limitations
 
-1. **WebSocket output streaming** - 10ms timeout may miss early output (see issue #1)
+1. ~~**WebSocket output streaming** - 10ms timeout issue~~ ✅ Fixed (PTY-based now)
 2. ~~**Rate limiting** - Not enforced~~ ✅ Fixed
-3. **Windows OS auth** - Only checks user existence, not password
+3. **Windows OS auth** - Limited verification
 4. **Session limits** - No built-in limit on concurrent sessions
 5. **Input validation** - Commands executed directly (no sanitization)
 

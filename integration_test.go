@@ -16,25 +16,37 @@ import (
 	"WASH/pkg/ws"
 )
 
+// readShellOutput reads from the output channel with a timeout
+func readShellOutput(s *shell.Session, timeout time.Duration) string {
+	var result []byte
+	timer := time.After(timeout)
+	for {
+		select {
+		case data, ok := <-s.Output():
+			if !ok {
+				return string(result)
+			}
+			result = append(result, data...)
+		case <-timer:
+			return string(result)
+		}
+	}
+}
+
 // TestShellSession tests basic shell session functionality
 func TestShellSession(t *testing.T) {
-	session, err := shell.NewSession("")
+	session, err := shell.NewSession("", "", 24, 80)
 	if err != nil {
 		t.Fatalf("Failed to create shell session: %v", err)
 	}
 	defer session.Close()
 
-	// Test writing a command
 	_, err = session.Write([]byte("echo hello\n"))
 	if err != nil {
 		t.Fatalf("Failed to write to shell: %v", err)
 	}
 
-	// Wait for output
-	time.Sleep(500 * time.Millisecond)
-
-	// Read output
-	output := session.ReadStdout()
+	output := readShellOutput(session, 2*time.Second)
 	if !bytes.Contains([]byte(output), []byte("hello")) {
 		t.Errorf("Expected output to contain 'hello', got: %s", output)
 	}
@@ -218,7 +230,7 @@ func TestAPIHandler(t *testing.T) {
 func TestWebSocketSession(t *testing.T) {
 	tokens := []string{"ws-test-token"}
 	a := auth.NewAuthenticator(tokens, false)
-	sessionManager := ws.NewSessionManager(a, "")
+	sessionManager := ws.NewSessionManager(a, "", "")
 
 	// Create test WebSocket server
 	mux := http.NewServeMux()
@@ -235,7 +247,7 @@ func TestWebSocketSession(t *testing.T) {
 func TestSessionManager(t *testing.T) {
 	tokens := []string{"session-test-token"}
 	a := auth.NewAuthenticator(tokens, false)
-	sessionManager := ws.NewSessionManager(a, "")
+	sessionManager := ws.NewSessionManager(a, "", "")
 
 	// Check initial state
 	if sessionManager == nil {
@@ -248,7 +260,7 @@ func TestSessionManager(t *testing.T) {
 
 // TestConcurrentCommands tests running multiple commands concurrently
 func TestConcurrentCommands(t *testing.T) {
-	session, err := shell.NewSession("")
+	session, err := shell.NewSession("", "", 24, 80)
 	if err != nil {
 		t.Fatalf("Failed to create shell session: %v", err)
 	}
@@ -273,10 +285,7 @@ func TestConcurrentCommands(t *testing.T) {
 		<-done
 	}
 
-	// Wait for output to be processed
-	time.Sleep(1 * time.Second)
-
-	output := session.ReadStdout()
+	output := readShellOutput(session, 2*time.Second)
 	t.Logf("Concurrent command output: %s", output)
 }
 
@@ -326,7 +335,7 @@ func TestAuthenticationFlow(t *testing.T) {
 
 // TestShellSessionCleanup tests proper cleanup of shell sessions
 func TestShellSessionCleanup(t *testing.T) {
-	session, err := shell.NewSession("")
+	session, err := shell.NewSession("", "", 24, 80)
 	if err != nil {
 		t.Fatalf("Failed to create shell session: %v", err)
 	}
@@ -421,7 +430,7 @@ func TestWebSocketMessageHandling(t *testing.T) {
 	// This test verifies that the WebSocket message structures are correct
 	tokens := []string{"msg-test-token"}
 	a := auth.NewAuthenticator(tokens, false)
-	sessionManager := ws.NewSessionManager(a, "")
+	sessionManager := ws.NewSessionManager(a, "", "")
 
 	if sessionManager == nil {
 		t.Fatal("Session manager creation failed")
@@ -432,7 +441,7 @@ func TestWebSocketMessageHandling(t *testing.T) {
 
 // TestShellOutputBuffering tests shell output buffering
 func TestShellOutputBuffering(t *testing.T) {
-	session, err := shell.NewSession("")
+	session, err := shell.NewSession("", "", 24, 80)
 	if err != nil {
 		t.Fatalf("Failed to create shell session: %v", err)
 	}
@@ -447,10 +456,7 @@ func TestShellOutputBuffering(t *testing.T) {
 		}
 	}
 
-	// Wait for output
-	time.Sleep(1 * time.Second)
-
-	output := session.ReadStdout()
+	output := readShellOutput(session, 2*time.Second)
 	t.Logf("Buffered output: %s", output)
 
 	// Verify all lines are present (check for the actual output, not the command)
@@ -579,7 +585,7 @@ func TestAPIRateLimiting(t *testing.T) {
 func TestWebSocketRateLimiting(t *testing.T) {
 	tokens := []string{"ws-rate-limit-token"}
 	a := auth.NewAuthenticator(tokens, false)
-	sessionManager := ws.NewSessionManager(a, "")
+	sessionManager := ws.NewSessionManager(a, "", "")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", sessionManager.HandleWebSocket)
@@ -595,7 +601,7 @@ func TestWebSocketRateLimiting(t *testing.T) {
 func TestCORSProtection(t *testing.T) {
 	tokens := []string{"cors-test-token"}
 	a := auth.NewAuthenticator(tokens, false)
-	sessionManager := ws.NewSessionManager(a, "")
+	sessionManager := ws.NewSessionManager(a, "", "")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", sessionManager.HandleWebSocket)

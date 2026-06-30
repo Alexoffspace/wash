@@ -81,7 +81,7 @@ func (h *AuthHandler) Authenticate(r *http.Request) (string, error) {
 				return "token-user", nil
 			}
 		}
-		return "", fmt.Errorf("invalid token")
+		// Token not matched — fall through to Basic Auth (supports OS auth)
 	}
 
 	// Check Basic Auth

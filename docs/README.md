@@ -63,7 +63,7 @@ The application automatically loads `.env` and `config.yaml` if they exist.
 
 **WASH** is a cross-platform Go application that provides remote shell access through two interfaces:
 
-1. **WebSocket** (`/ws`) — interactive, full-duplex shell session with a web-based terminal UI.
+1. **WebSocket** (`/ws`) — interactive, full-duplex PTY-based shell session with a web-based xterm.js terminal UI.
 2. **REST API** (`POST /api/command`) — single-command execution via HTTP POST with JSON request/response.
 
 The application runs as a standalone HTTP server and supports both token-based and OS user/password authentication.
@@ -71,13 +71,16 @@ The application runs as a standalone HTTP server and supports both token-based a
 ## Features
 
 - Cross-platform support (Linux, macOS, Windows)
-- Interactive shell via WebSocket with real-time output
+- Interactive shell via WebSocket with PTY-based real-time output (xterm.js)
+- Configurable shell (sh, bash, zsh, fish, etc.) via config.yaml
 - REST API for scripted command execution
 - Token-based authentication
-- OS user/password authentication (Linux `su`, Windows `net user`)
+- OS user/password authentication (Linux `su`, Windows PowerShell)
 - Graceful shutdown on SIGINT/SIGTERM
 - Multiple concurrent sessions
 - Automatic ping/keep-alive (30s interval)
+- Background images for light/dark themes
+- Embedded static files (no external dependencies for the web UI)
 
 ## Installation
 
@@ -199,7 +202,7 @@ Quick reference:
 ### WebSocket API
 
 - `ws://localhost:9091/ws` — Interactive shell session
-- Message types: `auth`, `command`, `ping`, `pong`
+- Message types: `auth`, `command`, `key`, `resize`, `ping`, `pong`
 - Server responses: `auth_success`, `auth_error`, `output`, `system`, `error`, `pong`
 
 ### Testing
@@ -208,9 +211,10 @@ Quick reference:
 
 ## Current status:
 - ✅ REST API: All endpoints working
-- ✅ WebSocket: Authentication working, command output streaming functional
+- ✅ WebSocket: Authentication + PTY-based output streaming working
 - ✅ Rate limiting: Enforced (10 failed attempts per minute per IP)
-- ⚠️ WebSocket output streaming: 10ms timeout may miss early output (see TROUBLESHOOTING.md)
+- ✅ Configurable shell: bash, zsh, fish via config.yaml
+- ✅ xterm.js terminal: full terminal emulation with ANSI support
 
 ## Project Structure
 
@@ -228,11 +232,12 @@ WASH/
 │   ├── auth/
 │   │   └── auth.go      # Authentication logic (token + OS)
 │   ├── shell/
-│   │   └── shell.go     # Shell session management, command execution
+│   │   └── shell.go     # PTY-based shell session, command execution
 │   └── ws/
-│       └── ws.go        # WebSocket session manager, message handling
+│       └── ws.go        # WebSocket session manager, PTY I/O, rate limiting
+├── static/              # Embedded static files (CSS, JS, xterm.js, fonts, backgrounds)
 └── templates/
-    └── index.html       # Web terminal UI
+    └── index.html       # Web terminal UI (xterm.js)
 ```
 
 ## Building from Source
@@ -256,6 +261,6 @@ go test ./...
 2. **Configure CORS.** The WebSocket upgrader validates origins: in localhost mode only loopback origins are accepted; in `-allow-0` mode the request host must match the origin. For production behind a reverse proxy, ensure `X-Forwarded-Host` is set correctly.
 3. **Strong tokens.** Use long, random tokens. Never use weak or guessable values.
 4. **Protect .env file.** Ensure `.env` is not committed to version control and has proper file permissions.
-5. **OS auth caution.** OS user/password authentication via `su` on Linux has limitations. On Windows, password verification is limited to user existence checks.
+5. **OS auth caution.** OS user/password authentication via `su` on Linux has limitations (reads password from stdin). On Windows, password verification is limited.
 6. **Input validation.** Shell commands are executed directly — sanitize all inputs from untrusted sources.
 7. **Session limits.** There is no built-in limit on concurrent sessions. Monitor resource usage.
