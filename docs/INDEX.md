@@ -23,6 +23,7 @@ Main documentation covering:
 - Authentication methods
 - Project structure
 - Security considerations
+- Configuration file reference
 
 **Start here** if you're new to WASH.
 
@@ -34,7 +35,7 @@ Complete API documentation including:
   - `GET /api/status` - System information
   - `POST /api/command` - Execute commands
 - **WebSocket API**
-  - `/ws` - Interactive shell sessions
+  - `/ws` - Interactive shell sessions (PTY-based)
   - Message types and formats
   - Authentication flow
   - Error handling
@@ -77,12 +78,11 @@ Quick reference for all endpoints:
 
 ### [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 Solutions for common problems:
-- WebSocket output not streaming (HIGH priority)
-- Rate limiting not working (MEDIUM priority)
 - Server won't start
 - Authentication failures
 - CORS errors
-- Memory/performance issues
+- Custom shell configuration
+- WebSocket ping/pong issues
 - Debugging tips
 - Performance tuning
 
@@ -125,20 +125,22 @@ go build -o WASH
 ### Run Server
 ```bash
 # Token authentication
-./WASH -port=9091
+./WASH -token=YOUR_TOKEN -port=9091
 
 # OS authentication
 ./WASH -os-auth -port=9091
 ```
 
+Open http://localhost:9091 in your browser, enter the token (or OS credentials), and click Connect.
+
 ### Test REST API
 ```bash
 # Get system status
-curl -H "X-Auth-Token: 123" http://localhost:9091/api/status
+curl -H "X-Auth-Token: YOUR_TOKEN" http://localhost:9091/api/status
 
 # Execute command
 curl -X POST http://localhost:9091/api/command \
-  -H "X-Auth-Token: 123" \
+  -H "X-Auth-Token: YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command": "whoami"}'
 ```
@@ -149,7 +151,14 @@ import asyncio, websockets, json
 
 async def test():
     async with websockets.connect('ws://localhost:9091/ws') as ws:
-        await ws.send(json.dumps({'type': 'auth', 'password': '123'}))
+        await ws.send(json.dumps({'type': 'auth', 'password': 'YOUR_TOKEN'}))
+        # auth_success
+        print(await ws.recv())
+        # system message (shell started)
+        print(await ws.recv())
+        # send a command
+        await ws.send(json.dumps({'type': 'key', 'content': 'whoami\n'}))
+        # output (raw PTY data with ANSI codes)
         print(await ws.recv())
 
 asyncio.run(test())
@@ -164,13 +173,15 @@ asyncio.run(test())
 - Token-based authentication
 - OS authentication (Basic Auth)
 - WebSocket connection and authentication
-- WebSocket command output streaming (may need ReadStdout timeout tuning)
+- PTY-based command output streaming
 - System information retrieval
 - Command execution (REST API)
 - Rate limiting (10 failed attempts per minute per IP)
+- Auto-reconnect with exponential backoff
+- Native WebSocket keepalive (PingMessage)
 
 ### ⚠️ Issues
-- **WebSocket command output** - 10ms timeout in `ReadStdout()` may miss early output (see TROUBLESHOOTING.md)
+- (none known)
 
 ### 📋 See Also
 - [TESTING.md](TESTING.md) - Detailed test results
@@ -202,7 +213,7 @@ WAShell/
 - 🔄 **Interactive Sessions**: Full PTY-based shell via WebSocket (xterm.js)
 - 📊 **System Info**: CPU, memory, disk, uptime
 - 🛡️ **CORS Protection**: Origin validation
-- 🔌 **Keep-Alive**: Ping/pong messages every 30s
+- 🔌 **Keep-Alive**: Native WebSocket PingMessage every 30s
 - 📝 **Logging**: Detailed debug logs
 - ⚙️ **Configurable shell**: sh, bash, zsh, fish via config.yaml
 - 🖼️ **Background images**: Random backgrounds for light/dark themes
@@ -256,6 +267,6 @@ curl -u "username:password" http://localhost:9091/api/command
 
 ## Version
 
-- **WASH**: 0.1.0
+- **WASH**: 2.0.0
 - **API**: 1.0
-- **Documentation**: 2026-06-24
+- **Documentation**: 2026-06-30

@@ -25,9 +25,11 @@ WebSocket authentication works, but command output streaming has issues:
 |------|--------|---------|
 | Connect without auth | ✅ PASS | Returns `auth_error` immediately |
 | Connect with token | ✅ PASS | Returns `auth_success` |
-| Send single command | ⚠️ PARTIAL | Command sent, but output not received |
-| Multiple commands | ❌ FAIL | Only first command receives output, subsequent commands timeout |
+| Send single command | ✅ PASS | PTY-based blocking output channel |
+| Multiple commands | ✅ PASS | PTY handles sequential input correctly |
 | System messages | ✅ PASS | Shell session startup message received |
+| Auto-reconnect | ⚠️ PLACEHOLDER | No automated test yet (requires WS client library) |
+| Native ping keepalive | ⚠️ PLACEHOLDER | Gorilla websocket handles PingMessage internally |
 
 ---
 

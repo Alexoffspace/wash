@@ -13,7 +13,7 @@
 
 | Protocol | Endpoint | Auth | Status | Purpose |
 |----------|----------|------|--------|---------|
-| WS | `/ws` | Required | ⚠️ Partial | Interactive shell session |
+| WS | `/ws` | Required | ✅ Working | Interactive PTY-based shell session (xterm.js) |
 
 ---
 
@@ -201,7 +201,12 @@ const ws = new WebSocket('ws://localhost:9091/ws');
 **Other Messages**:
 - `system` - System notifications
 - `error` - Error messages
-- `ping` - Server keepalive (respond with `pong`)
+- `ping` - Legacy keepalive (server now uses native WebSocket PingMessage)
+
+**Client Features**:
+- Auto-reconnect with exponential backoff (1s–30s max)
+- Terminal resize reporting via `resize` message
+- System status polling every 5s
 
 ---
 
@@ -248,15 +253,11 @@ curl -u "username:password" http://localhost:9091/api/command \
 
 - `GET /api/status` - Returns system information
 - `POST /api/command` - Executes commands and returns output
-- WebSocket authentication - Connects and authenticates successfully
+- WebSocket session - Connects, authenticates, and streams PTY output
 - Token-based auth - Works for both REST and WebSocket
 - OS authentication - Works for both REST and WebSocket
 
 ### ⚠️ Partial/Issues
-
-- WebSocket command output - 10ms timeout may miss early output (see TROUBLESHOOTING.md)
-
-### ❌ Not Working
 
 (none)
 
@@ -299,7 +300,9 @@ curl -u "username:password" http://localhost:9091/api/command \
 | WebSocket buffer | 4096 bytes (read/write) |
 | Send channel | 100 messages |
 | Auth timeout | 5 seconds |
-| Write timeout | 10 seconds |
+| Read deadline | 60 seconds |
+| Write deadline | 30 seconds |
+| Native ping | 30s (WebSocket PingMessage) |
 | Rate limit threshold | 10 failures |
 | Rate limit window | 1 minute |
 

@@ -278,14 +278,8 @@ Informs the server of terminal size changes (rows/cols). Sent by xterm.js on win
 }
 ```
 
-##### `ping` - Keepalive
-Sends a ping to keep the connection alive.
-
-```json
-{
-  "type": "ping"
-}
-```
+##### `ping` - Keepalive (deprecated)
+The server now uses native WebSocket PingMessage frames (every 30s) instead of application-level ping/pong. Legacy `ping`/`pong` messages are still handled for backward compatibility but are no longer sent by the server.
 
 ---
 
@@ -362,16 +356,8 @@ Sent when an error occurs during command execution.
 }
 ```
 
-##### `pong` - Keepalive Response
-Sent in response to a `ping` message.
-
-```json
-{
-  "type": "pong",
-  "content": "pong",
-  "timestamp": "2026-06-24T15:47:12+04:00"
-}
-```
+##### `pong` - Keepalive Response (deprecated)
+Legacy response to `ping`. No longer sent by the server (native PingMessage used instead).
 
 ---
 
@@ -383,32 +369,28 @@ import websockets
 import json
 
 async def example():
-    async with websockets.connect('ws://localhost:9091/ws', ping_interval=None) as ws:
+    async with websockets.connect('ws://localhost:9091/ws') as ws:
         # Send authentication
         auth_msg = {
             'type': 'auth',
             'password': '123'  # Token
         }
         await ws.send(json.dumps(auth_msg))
-        
+
         # Receive auth response
         response = await ws.recv()
         data = json.loads(response)
-        
+
         if data['type'] == 'auth_success':
             print(f"Connected as {data['user']}")
-            
-            # Receive system message
+
+            # Receive system message (shell started)
             system_msg = await ws.recv()
-            
-            # Send command
-            cmd = {
-                'type': 'command',
-                'command': 'whoami'
-            }
-            await ws.send(json.dumps(cmd))
-            
-            # Receive output
+
+            # Send keystrokes (PTY mode)
+            await ws.send(json.dumps({'type': 'key', 'content': 'whoami\n'}))
+
+            # Receive output (raw PTY data with ANSI codes)
             output = await ws.recv()
             output_data = json.loads(output)
             print(f"Output: {output_data['content']}")
@@ -417,6 +399,8 @@ async def example():
 
 asyncio.run(example())
 ```
+
+Note: server uses native WebSocket PingMessage for keepalive (every 30s). No need for `ping_interval` or manual pong.
 
 ---
 
@@ -441,10 +425,14 @@ asyncio.run(example())
 - **Localhost** (127.0.0.1 and localhost) are allowed
 - **Cross-origin requests** from other domains are rejected
 
-### WebSocket Timeouts
+### WebSocket Timeouts & Keepalive
 
 - **Auth timeout**: 5 seconds (first message must be sent within this time)
-- **Write timeout**: 10 seconds (per message write)
+- **Read deadline**: 60 seconds (reset on every received message and pong frame)
+- **Pong handler**: auto-resets read deadline (no need for manual pong responses)
+- **Native ping**: server sends WebSocket PingMessage every 30s (browser/gorilla handles pong automatically)
+- **Write deadline**: 30 seconds (per message write)
+- **Auto-reconnect**: the xterm.js client automatically reconnects with exponential backoff (1s → 2s → 4s ... up to 30s max) on connection loss
 
 ---
 
@@ -509,7 +497,9 @@ See [CONFIGURATION.md](CONFIGURATION.md) for details. Key options:
 | WebSocket buffer | 4096 bytes | Read/write buffers |
 | Send channel buffer | 100 messages | Prevents blocking |
 | Auth timeout | 5 seconds | First message deadline |
-| Write timeout | 10 seconds | Per WebSocket write |
+| Read deadline | 60 seconds | Reset on every message/pong |
+| Write deadline | 30 seconds | Per WebSocket write |
+| Native ping | 30 seconds | WebSocket PingMessage (auto pong) |
 | Rate limit threshold | 10 failures | Per IP address |
 | Rate limit window | 1 minute | Sliding window |
 

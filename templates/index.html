@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>WASH - Web Terminal</title>
     <link rel="stylesheet" href="/static/xterm.css">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html {
@@ -52,16 +53,22 @@
             background: rgb(0 0 0 / 60%);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            padding: 30px 40px 20px 40px; border-radius: 10px;
+            padding: 30px 40px 20px 40px; border-radius: 20px;
             box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
             outline: 1px solid rgba(255, 255, 255, 0.2);
             width: 400px; max-width: 90vw;
             color: #eee;
         }
-        .login-box h1 {
-            text-align: center; margin-bottom: 8px; font-size: 2em;
-            background: linear-gradient(135deg, #fff, #e94560);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        .login-box .login-logo {
+            text-align: center; margin-bottom: 8px; position: relative;
+        }
+        .login-box .login-logo img {
+            max-height: 200px; width: auto; display: inline-block;
+        }
+        .login-box .login-logo::after {
+            content: ''; position: absolute; bottom: 0; left: 5%; width: 90%; height: 35%;
+            background: radial-gradient(ellipse at center bottom, #ff8a3b, transparent 70%);
+            opacity: 0.7; z-index: -1; pointer-events: none;
         }
         .login-box .subtitle { text-align: center; color: rgba(255, 255, 255, 0.8); margin-bottom: 30px; font-size: 0.9em; }
         .form-group { margin-bottom: 20px; }
@@ -94,7 +101,7 @@
             box-shadow: 0 8px 25px rgba(233, 69, 96, 0.5);
         }
         .btn:active { transform: translateY(0); }
-        .login-error { color: #ff6b6b; text-align: center; font-size: 0.9em; }
+        .login-error { color: #ff6b6b; text-align: center; font-size: 0.9em; min-height: 1.4em; }
         #terminal-screen {
             display: flex; flex-direction: column; height: 100%; height: 100dvh;
             position: fixed; top: 0; left: 0; width: 100%;
@@ -121,7 +128,7 @@
             box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
             outline: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .term-header h2 { font-size: 1.2em; background: linear-gradient(135deg, #fb9696, #e94560); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .term-header h2 { font-size: 1.2em; background: linear-gradient(to right, #ffae35, #711d7f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 6px rgba(0,0,0,0.5)); }
         .term-header .user-info { color: rgba(255, 255, 255, 0.8); font-size: 0.9em; white-space: nowrap; display: inline-flex; align-items: center; gap: 14px; }
         .term-header #host-info { color: rgba(255, 255, 255, 0.7); font-size: 0.8em; }
         .term-header .status-item { display: inline-flex; align-items: center; gap: 8px; color: rgba(255, 255, 255, 0.85); font-size: 0.9em; white-space: nowrap; cursor: default; }
@@ -195,16 +202,16 @@
             top: 56px;
             left: 0;
             right: 0;
-            background: rgba(30, 50, 60, 0.97);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgb(0 0 0 / 60%);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             padding: 16px;
             z-index: 99;
             flex-direction: column;
             gap: 14px;
             align-items: stretch;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+            outline: 1px solid rgba(255, 255, 255, 0.2);
             transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
             pointer-events: none;
         }
@@ -430,10 +437,10 @@
             outline: 1px solid rgba(255, 255, 255, 0.6);
             color: #333;
         }
-        body.light .login-box h1 {
-            background: linear-gradient(135deg, #e94560, #0f3460);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        body.light .login-box .login-logo {
+            text-align: center; margin-bottom: 8px;
         }
+        body.light .login-box .login-logo::after { display: none; }
         body.light .login-box .subtitle { color: rgba(0, 0, 0, 0.7); }
         body.light .form-group label { color: rgba(0, 0, 0, 0.8); }
         body.light .form-group input,
@@ -451,7 +458,7 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             outline: 1px solid rgba(255, 255, 255, 0.6);
         }
-        body.light .term-header h2 { color: #e94560; }
+        body.light .term-header h2 { background: linear-gradient(to right, #ffae35, #711d7f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 4px rgba(255,255,255,0.6)); }
         body.light .term-header .user-info { color: rgba(0, 0, 0, 0.7); }
         body.light .header-divider { background: rgba(0, 0, 0, 0.15); }
         body.light .term-header #host-info { color: rgba(0, 0, 0, 0.7); }
@@ -483,8 +490,8 @@
             box-shadow: 0 4px 15px rgba(233, 69, 96, 0.2);
         }
         body.light .header-dropdown {
-            background: rgba(240, 245, 250, 0.97);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            background: rgb(255 255 255 / 70%);
+            outline: 1px solid rgba(255, 255, 255, 0.6);
         }
         body.light .header-dropdown .user-info,
         body.light .header-dropdown .status-item {
@@ -615,7 +622,6 @@
                 padding: 25px 20px;
                 margin: 10px;
             }
-            .login-box h1 { font-size: 1.8em; }
             .login-box .subtitle { font-size: 0.85em; }
             .form-group label { font-size: 0.85em; }
             .form-group input, .form-group select, .btn {
@@ -648,7 +654,7 @@
             <div style="display:flex;justify-content:flex-end;">
                 <button class="btn-theme" id="btn-theme-login" title="Toggle theme"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M12 11.807A9.002 9.002 0 0 1 10.049 2a9.942 9.942 0 0 0-5.12 2.735c-3.905 3.905-3.905 10.237 0 14.142c3.906 3.906 10.237 3.905 14.143 0a9.946 9.946 0 0 0 2.735-5.119A9.003 9.003 0 0 1 12 11.807z" fill="currentColor"/></svg></button>
             </div>
-            <h1>WASH</h1>
+            <div class="login-logo"><img src="/static/logo.png" alt="WASH"></div>
             <p class="subtitle">Web Accessible SHell</p>
             <form id="login-form">
                 <div class="form-group">
@@ -730,7 +736,6 @@
                 return credCryptoKey;
             } catch {
                 useBase64 = true;
-                console.warn('Web Crypto API unavailable, using base64 encoding');
                 return null;
             }
         }
@@ -779,8 +784,9 @@
             sessionStorage.removeItem('WASH_creds');
         }
 
-        let ws = null, sessionID = null, currentUser = null, authPassword = '', statusInterval = null, hostInfo = { hostname: '', ip: '' };
+        let ws = null, sessionID = null, currentUser = null, authPassword = '', authLogin = '', statusInterval = null, hostInfo = { hostname: '', ip: '' };
         let term = null, fitAddon = null;
+        let reconnectAttempt = 0, maxReconnectDelay = 30000, reconnectTimer = null, isReconnecting = false;
         const loginScreen = document.getElementById('login-screen');
         const terminalScreen = document.getElementById('terminal-screen');
         const loginForm = document.getElementById('login-form');
@@ -980,7 +986,9 @@
         });
 
         function connectWebSocket(login, password) {
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
             authPassword = password;
+            authLogin = login;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
             ws.onopen = () => {
@@ -990,8 +998,50 @@
                 try { handleWebSocketMessage(JSON.parse(event.data)); }
                 catch (e) { console.error('Parse error:', e); }
             };
-            ws.onclose = () => { connStatus.className = 'connection-status disconnected'; if (term) term.writeln('\r\n\x1b[31mConnection closed\x1b[0m'); };
-            ws.onerror = () => { loginError.textContent = 'Connection error'; connStatus.className = 'connection-status disconnected'; };
+            ws.onclose = () => { handleDisconnect(); };
+            ws.onerror = () => { handleDisconnect(); };
+        }
+
+        function handleDisconnect() {
+            connStatus.className = 'connection-status disconnected';
+            if (!terminalScreen.classList.contains('visible')) {
+                loginError.textContent = 'Connection error';
+                return;
+            }
+            if (!isReconnecting && term) term.writeln('\r\n\x1b[31mConnection lost\x1b[0m');
+            scheduleReconnect();
+        }
+
+        function scheduleReconnect() {
+            if (isReconnecting) return;
+            isReconnecting = true;
+            connStatus.className = 'connection-status connecting';
+            if (term) term.writeln('\r\n\x1b[33mReconnecting...\x1b[0m');
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), maxReconnectDelay);
+            reconnectAttempt++;
+            reconnectTimer = setTimeout(() => attemptReconnect(), delay);
+        }
+
+        function attemptReconnect() {
+            if (!terminalScreen.classList.contains('visible')) { isReconnecting = false; return; }
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const newWs = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            newWs.onopen = () => {
+                newWs.send(JSON.stringify({ type: 'auth', login: authLogin, password: authPassword }));
+            };
+            newWs.onmessage = (event) => {
+                try { handleWebSocketMessage(JSON.parse(event.data)); }
+                catch (e) { console.error('Parse error:', e); }
+            };
+            newWs.onclose = () => {
+                if (isReconnecting) {
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), maxReconnectDelay);
+                    reconnectAttempt++;
+                    reconnectTimer = setTimeout(() => attemptReconnect(), delay);
+                }
+            };
+            newWs.onerror = () => {};
+            ws = newWs;
         }
 
         function initTerminal() {
@@ -1003,6 +1053,7 @@
                 fontFamily: '"MesloLGM Nerd Font", "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, Monaco, "Courier New", monospace',
                 fontWeight: 'normal',
                 fontWeightBold: 'bold',
+                scrollback: 10000,
                 letterSpacing: 0,
                 lineHeight: 1.0,
                 allowProposedApi: true,
@@ -1114,6 +1165,15 @@
                     sessionID = msg.session; currentUser = msg.user;
                     hostInfo.hostname = msg.hostname || '';
                     hostInfo.ip = window.location.hostname || window.location.host || '';
+                    if (isReconnecting) {
+                        isReconnecting = false;
+                        reconnectAttempt = 0;
+                        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+                        connStatus.className = 'connection-status connected';
+                        if (term) term.writeln(`\r\n\x1b[32mReconnected as ${currentUser}\x1b[0m`);
+                        setTimeout(sendResizeFromFit, 200);
+                        break;
+                    }
                     await saveCredentials(getAuthMethod(),
                         getAuthMethod() === 'token' ? '' : document.getElementById('input-username').value.trim(),
                         document.getElementById('input-password')?.value.trim() || document.getElementById('input-token').value.trim()
@@ -1125,7 +1185,9 @@
                     setTimeout(sendResizeFromFit, 200);
                     break;
                 case 'auth_error':
-                    loginError.textContent = msg.error || 'Authentication failed'; connStatus.className = 'connection-status disconnected'; ws.close(); break;
+                    loginError.textContent = msg.error || 'Authentication failed'; connStatus.className = 'connection-status disconnected'; ws.close();
+                    if (isReconnecting) { isReconnecting = false; reconnectAttempt = 0; if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; } }
+                    break;
                 case 'output':
                     if (term) term.write(msg.content || '');
                     break;
@@ -1157,18 +1219,23 @@
         function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
         btnLogout.addEventListener('click', () => {
+            isReconnecting = false; reconnectAttempt = 0;
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
             if (ws) ws.close();
             if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
             terminalScreen.classList.remove('visible');
             loginScreen.classList.remove('hidden');
             if (term) { term.dispose(); term = null; fitAddon = null; }
             document.getElementById('xterm-clip').innerHTML = '';
-            sessionID = null; currentUser = null; authPassword = ''; hostInfo = { hostname: '', ip: '' };
+            sessionID = null; currentUser = null; authPassword = ''; authLogin = ''; hostInfo = { hostname: '', ip: '' };
+            connStatus.className = 'connection-status disconnected';
             clearCredentials();
         });
 
         window.addEventListener('beforeunload', (e) => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+            isReconnecting = false;
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
                 e.preventDefault();
                 e.returnValue = '';
                 return '';

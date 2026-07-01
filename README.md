@@ -1,5 +1,9 @@
 # WASH — Web Accessible Shell
 
+<p align="center">
+  <img src="static/logo.png" alt="WASH logo" width="400">
+</p>
+
 > Cross-platform Go application providing remote shell access via WebSocket and REST API.
 
 ## Quick Links
@@ -14,10 +18,15 @@
 
 ## Overview
 
-**WASH** is a cross-platform Go application that provides remote shell access through two interfaces:
+**WASH** is a cross-platform Go application that provides remote shell access through three interfaces:
 
-1. **WebSocket** (`/ws`) — interactive, full-duplex shell session with a web-based terminal UI.
+1. **WebSocket** (`/ws`) — PTY-based shell protocol for custom clients (key input, resize events, raw ANSI output).
 2. **REST API** (`POST /api/command`) — single-command execution via HTTP POST with JSON request/response.
+3. **Web GUI** (`GET /`) — browser-based xterm.js terminal with auth screen, theme toggle, auto-reconnect, and system status bar.
+
+<p align="center">
+  <img src="static/preview.png" alt="WASH preview — terminal UI" width="90%">
+</p>
 
 ## Quick Start
 
@@ -32,18 +41,23 @@ go build -o WASH
 ./WASH -os-auth -port=9091
 ```
 
-Open a browser and navigate to `http://localhost:9091/` to access the web terminal.
+Open a browser and navigate to `http://localhost:9091/` — you'll see a login form.
+Enter your token (or OS credentials) and click Connect to access the xterm.js terminal.
 
 ## Features
 
 - ✅ Cross-platform support (Linux, macOS, Windows)
-- ✅ Interactive shell via WebSocket with real-time output
+- ✅ Interactive PTY-based shell via WebSocket with xterm.js
+- ✅ Configurable shell (sh, bash, zsh, fish) via config.yaml
 - ✅ REST API for scripted command execution
 - ✅ Token-based authentication
-- ✅ OS user/password authentication
+- ✅ OS user/password authentication (Linux `su`, Windows PowerShell)
 - ✅ Graceful shutdown on SIGINT/SIGTERM
 - ✅ Multiple concurrent sessions
-- ✅ Automatic ping/keep-alive (30s interval)
+- ✅ Native WebSocket keepalive (PingMessage every 30s)
+- ✅ Auto-reconnect with exponential backoff (1s–30s)
+- ✅ Theme backgrounds (light/dark)
+- ✅ Embedded static files — zero external web dependencies
 
 ## Documentation Structure
 

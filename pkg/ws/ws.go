@@ -108,6 +108,7 @@ type Session struct {
 	Shell     *shell.Session
 	mu        sync.Mutex
 	closed    bool
+	done      chan struct{}
 	createdAt time.Time
 }
 
@@ -118,7 +119,8 @@ func NewSession(id, userID string, conn *websocket.Conn) *Session {
 		ID:        id,
 		UserID:    userID,
 		Conn:      conn,
-		Send:      make(chan []byte, 100), // Large buffer to prevent blocking
+		Send:      make(chan []byte, 100),
+		done:      make(chan struct{}),
 		createdAt: time.Now(),
 	}
 }
@@ -148,6 +150,12 @@ func (m *SessionManager) HandleWebSocket(w http.ResponseWriter, r *http.Request)
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
+
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
 
 	// Get client IP for rate limiting
 	clientIP := r.RemoteAddr
@@ -276,6 +284,8 @@ func (m *SessionManager) readMessages(conn *websocket.Conn, session *Session) {
 			break
 		}
 
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+
 		log.Printf("[SESSION %s] CLIENT -> %s: %q", session.ID, msg.Type, msg.Content)
 
 		switch msg.Type {
@@ -335,44 +345,96 @@ func (m *SessionManager) readMessages(conn *websocket.Conn, session *Session) {
 
 // writeMessages sends messages to client
 func (m *SessionManager) writeMessages(conn *websocket.Conn, session *Session) {
+	const maxBufferSize = 4096
+	const flushInterval = 200 * time.Millisecond
+
+	log.Printf("[SESSION %s] writeMessages: started", session.ID)
+
+	var outputBuf strings.Builder
+	lastOutputTime := time.Now()
+	dirty := false
+
+	flushOutputLog := func(reason string) {
+		if outputBuf.Len() == 0 {
+			return
+		}
+		log.Printf("[SESSION %s] SERVER -> output (accumulated, len=%d): %q [flush: %s]",
+			session.ID, outputBuf.Len(), outputBuf.String(), reason)
+		outputBuf.Reset()
+		dirty = false
+	}
+
 	defer func() {
+		flushOutputLog("writeMessages exiting")
 		log.Printf("[SESSION %s] writeMessages: exiting", session.ID)
 		conn.Close()
 	}()
 
-	log.Printf("[SESSION %s] writeMessages: started", session.ID)
+	pingTicker := time.NewTicker(30 * time.Second)
+	defer pingTicker.Stop()
+
+	flushTicker := time.NewTicker(flushInterval)
+	defer flushTicker.Stop()
+
+	tryFlush := func(reason string) {
+		if !dirty {
+			return
+		}
+		if outputBuf.Len() > maxBufferSize || time.Since(lastOutputTime) > flushInterval {
+			flushOutputLog(reason)
+		}
+	}
 
 	for {
-		log.Printf("[SESSION %s] writeMessages: waiting for data from channel", session.ID)
+		select {
+		case data, ok := <-session.Send:
+			log.Printf("[SESSION %s] writeMessages: RECEIVED from channel, ok=%v, len=%d", session.ID, ok, len(data))
 
-		// Simple blocking read - no select, no timeout
-		data, ok := <-session.Send
-		log.Printf("[SESSION %s] writeMessages: RECEIVED from channel, ok=%v, len=%d", session.ID, ok, len(data))
+			if !ok {
+				log.Printf("[SESSION %s] writeMessages: session.Send channel closed", session.ID)
+				return
+			}
 
-		if !ok {
-			log.Printf("[SESSION %s] writeMessages: session.Send channel closed", session.ID)
-			return
-		}
-
-		session.mu.Lock()
-		if session.closed {
-			log.Printf("[SESSION %s] writeMessages: session already closed", session.ID)
+			session.mu.Lock()
+			if session.closed {
+				log.Printf("[SESSION %s] writeMessages: session already closed", session.ID)
+				session.mu.Unlock()
+				return
+			}
+			conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 			session.mu.Unlock()
-			return
-		}
-		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		session.mu.Unlock()
 
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			log.Printf("[SESSION %s] WRITE ERROR: %v", session.ID, err)
-			return
-		}
+			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				log.Printf("[SESSION %s] WRITE ERROR: %v", session.ID, err)
+				return
+			}
 
-		var msg Message
-		if err := json.Unmarshal(data, &msg); err == nil {
-			log.Printf("[SESSION %s] SERVER -> %s: %q", session.ID, msg.Type, msg.Content)
-		} else {
-			log.Printf("[SESSION %s] SERVER -> raw: %s", session.ID, string(data))
+			var msg Message
+			if err := json.Unmarshal(data, &msg); err == nil {
+				if msg.Type == "output" {
+					outputBuf.WriteString(msg.Content)
+					lastOutputTime = time.Now()
+					dirty = true
+					tryFlush("size/timeout")
+				} else {
+					flushOutputLog("before " + msg.Type)
+					log.Printf("[SESSION %s] SERVER -> %s: %q", session.ID, msg.Type, msg.Content)
+				}
+			} else {
+				flushOutputLog("before raw")
+				log.Printf("[SESSION %s] SERVER -> raw: %s", session.ID, string(data))
+			}
+
+		case <-flushTicker.C:
+			tryFlush("tick")
+
+		case <-pingTicker.C:
+			tryFlush("before ping")
+			conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if err := conn.WriteMessage(websocket.PingMessage, []byte("keepalive")); err != nil {
+				log.Printf("[SESSION %s] PING WRITE ERROR: %v", session.ID, err)
+				return
+			}
 		}
 	}
 }
@@ -396,7 +458,11 @@ func (m *SessionManager) monitorShell(session *Session) {
 				Type:    "output",
 				Content: string(data),
 			}
-			session.Send <- mustJSON(msg)
+			select {
+			case session.Send <- mustJSON(msg):
+			case <-session.done:
+				return
+			}
 
 		case <-pingTicker.C:
 			msg := Message{
@@ -405,8 +471,13 @@ func (m *SessionManager) monitorShell(session *Session) {
 			}
 			select {
 			case session.Send <- mustJSON(msg):
+			case <-session.done:
+				return
 			default:
 			}
+
+		case <-session.done:
+			return
 		}
 	}
 }
@@ -436,6 +507,9 @@ func (m *SessionManager) closeSession(sessionID string) {
 		session.Shell.Close()
 	}
 	session.Conn.Close()
+
+	// Close done channel to signal goroutines to stop
+	close(session.done)
 
 	// Close send channel last, after shell and connection are closed
 	close(session.Send)

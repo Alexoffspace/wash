@@ -1,5 +1,9 @@
 # WASH — Web Accessible Shell
 
+<p align="center">
+  <img src="../static/logo.png" alt="WASH logo" width="400">
+</p>
+
 > Cross-platform Go application providing remote shell access via WebSocket and REST API.
 
 ## Configuration File
@@ -28,7 +32,19 @@ token: WASH_TOKEN
 port: 9091
 
 # Listen on 0.0.0.0 (true) or 127.0.0.1 (false)
-allow_0: false
+allow_0: true
+
+# Working directory for shell sessions and commands
+# If not specified, user's home directory is used
+# work_dir: /home/user/my_workspace
+
+# Shell command for interactive sessions (e.g., bash, zsh, fish)
+# If not specified or commented out, "sh" is used
+# shell: bash
+# On Windows use full path to shell executable:
+# shell: C:\Program Files\Git\bin\bash.exe
+# shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+# shell: pwsh
 ```
 
 ### .env
@@ -61,10 +77,11 @@ The application automatically loads `.env` and `config.yaml` if they exist.
 
 ## Overview
 
-**WASH** is a cross-platform Go application that provides remote shell access through two interfaces:
+**WASH** is a cross-platform Go application that provides remote shell access through three interfaces:
 
-1. **WebSocket** (`/ws`) — interactive, full-duplex PTY-based shell session with a web-based xterm.js terminal UI.
-2. **REST API** (`POST /api/command`) — single-command execution via HTTP POST with JSON request/response.
+1. **WebSocket** (`/ws`) — PTY-based shell protocol for custom clients (key input, resize events, raw ANSI output).
+2. **REST API** (`POST /api/command`, `GET /api/status`) — single-command execution via HTTP POST with JSON request/response.
+3. **Web GUI** (`GET /`) — browser-based xterm.js terminal with login screen, theme toggle, auto-reconnect, and system status bar.
 
 The application runs as a standalone HTTP server and supports both token-based and OS user/password authentication.
 
@@ -78,7 +95,9 @@ The application runs as a standalone HTTP server and supports both token-based a
 - OS user/password authentication (Linux `su`, Windows PowerShell)
 - Graceful shutdown on SIGINT/SIGTERM
 - Multiple concurrent sessions
-- Automatic ping/keep-alive (30s interval)
+- Automatic ping/keep-alive (native WebSocket PingMessage every 30s)
+- Connection read deadline (60s, reset on pong)
+- Auto-reconnect with exponential backoff (1s–30s max)
 - Background images for light/dark themes
 - Embedded static files (no external dependencies for the web UI)
 
@@ -121,6 +140,22 @@ Run listening on all interfaces (0.0.0.0):
 ```
 
 Open a browser and navigate to `http://localhost:9091/` to access the web terminal.
+
+### Browser Usage
+
+1. Open `http://localhost:9091` — you'll see a login screen
+2. Select auth method: **Token** (default) or **Credentials** (OS auth)
+3. Enter your token (or OS username/password) and click **Connect**
+4. The xterm.js terminal appears — type commands directly
+
+The web UI features:
+- Real-time PTY output with ANSI colors
+- Shell-side tab completion and history
+- Ctrl+C / D / Z forwarded to the shell
+- Auto-reconnect with exponential backoff on connection loss
+- System status bar (CPU, RAM, disk — updates every 5s)
+- Light/dark theme toggle with random background images
+- Mobile-responsive with hamburger menu
 
 ## Command-Line Options
 
@@ -202,8 +237,10 @@ Quick reference:
 ### WebSocket API
 
 - `ws://localhost:9091/ws` — Interactive shell session
-- Message types: `auth`, `command`, `key`, `resize`, `ping`, `pong`
-- Server responses: `auth_success`, `auth_error`, `output`, `system`, `error`, `pong`
+- Message types: `auth`, `command` (legacy), `key`, `resize`
+- Server responses: `auth_success`, `auth_error`, `output`, `system`, `error`
+- Keepalive: native WebSocket PingMessage every 30s (auto pong)
+- Web UI features: xterm.js terminal, auto-reconnect, theme backgrounds
 
 ### Testing
 
@@ -215,6 +252,8 @@ Quick reference:
 - ✅ Rate limiting: Enforced (10 failed attempts per minute per IP)
 - ✅ Configurable shell: bash, zsh, fish via config.yaml
 - ✅ xterm.js terminal: full terminal emulation with ANSI support
+- ✅ Auto-reconnect: exponential backoff on connection loss
+- ✅ Native ping: WebSocket PingMessage keepalive every 30s
 
 ## Project Structure
 

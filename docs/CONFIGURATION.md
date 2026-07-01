@@ -28,11 +28,19 @@ token: WASH_TOKEN
 port: 9091
 
 # Listen on 0.0.0.0 (true) or 127.0.0.1 (false)
-allow_0: false
+allow_0: true
 
 # Working directory for shell sessions and commands
 # If not specified, user's home directory is used
 # work_dir: /home/user/my_workspace
+
+# Shell command for interactive sessions (e.g., bash, zsh, fish)
+# If not specified or commented out, "sh" is used
+# shell: bash
+# On Windows use full path to shell executable:
+# shell: C:\Program Files\Git\bin\bash.exe
+# shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+# shell: pwsh
 ```
 
 ### Configuration Options
@@ -44,7 +52,7 @@ allow_0: false
 | `port` | integer | `8080` | HTTP server port |
 | `allow_0` | boolean | `false` | Listen on all interfaces (0.0.0.0) instead of localhost (127.0.0.1) |
 | `work_dir` | string | `""` | Working directory for shell sessions and commands (default: user's home directory) |
-| `shell` | string | `sh` | Shell command for PTY sessions (e.g., bash, zsh, fish). On Windows use full path: `C:\Program Files\Git\bin\bash.exe` |
+| `shell` | string | `sh` | Shell command for PTY sessions (e.g., bash, zsh, fish). If not set or commented out in config.yaml, defaults to `sh`. On Windows use full path: `C:\Program Files\Git\bin\bash.exe` |
 
 ## .env
 
@@ -69,6 +77,8 @@ os_auth: false
 token: WASH_TOKEN
 port: 9091
 allow_0: false
+work_dir: /home/user/projects
+# shell: bash
 ```
 
 **.env:**
@@ -88,6 +98,8 @@ WASH_TOKEN=dev_token_123
 os_auth: true
 port: 9091
 allow_0: true
+# work_dir: /var/wash
+# shell: bash
 ```
 
 **Run:**
@@ -103,6 +115,8 @@ os_auth: false
 token: WASH_TOKEN
 port: 9091
 allow_0: false
+work_dir: /home/user/projects
+# shell: zsh
 ```
 
 **Run with CLI override:**
@@ -110,7 +124,7 @@ allow_0: false
 ./WASH -os-auth -allow-0
 ```
 
-Result: OS authentication enabled and listening on 0.0.0.0 (config values for these options are overridden).
+Result: OS authentication enabled and listening on 0.0.0.0 (config values for these options are overridden). `work_dir` and `shell` are still read from config.yaml.
 
 ## Security Considerations
 
