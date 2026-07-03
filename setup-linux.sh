@@ -181,81 +181,6 @@ build_wash() {
   fi
 }
 
-# ─── Service ────────────────────────────────────────
-install_service() {
-  header "Service"
-
-  prompt_yn "n" "Install as systemd service?" || return 0
-
-  local svc_user
-  svc_user=$(prompt_val "Service user" "wash")
-  [[ -z "$svc_user" ]] && svc_user="wash"
-
-  local svc_dir="$PWD"
-  local svc_file="/etc/systemd/system/wash.service"
-
-  echo ""
-
-  if ! id "$svc_user" &>/dev/null; then
-    info "Creating system user '${svc_user}'..."
-    sudo useradd -r -s /usr/sbin/nologin -M "$svc_user" 2>/dev/null && ok "User '${svc_user}' created" || warn "User creation failed (may already exist)"
-  else
-    ok "User '${svc_user}' already exists"
-  fi
-
-  info "Setting directory ownership..."
-  sudo chown -R "$svc_user":"$svc_user" "$svc_dir" 2>&1 | sed 's/^/  /' || warn "chown failed (may need passwordless sudo)"
-
-  if systemctl is-active --quiet wash 2>/dev/null; then
-    info "Stopping existing wash service..."
-    sudo systemctl stop wash 2>&1 | sed 's/^/  /' || true
-  fi
-  if systemctl is-enabled --quiet wash 2>/dev/null; then
-    sudo systemctl disable wash 2>&1 | sed 's/^/  /' || true
-  fi
-
-  local env_file="${svc_dir}/.env"
-  local env_line=""
-  [[ -f "$env_file" ]] && env_line="EnvironmentFile=${env_file}"
-
-  info "Writing unit file..."
-  sudo tee "$svc_file" > /dev/null <<UNIT || { fail "Failed to write unit file"; return 1; }
-[Unit]
-Description=WASH (Web Accessible Shell)
-After=network.target
-
-[Service]
-Type=simple
-User=${svc_user}
-Group=${svc_user}
-WorkingDirectory=${svc_dir}
-ExecStart=${svc_dir}/WASH
-Restart=on-failure
-RestartSec=5
-${env_line}
-PrivateTmp=true
-NoNewPrivileges=true
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-  ok "Unit file written: ${svc_file}"
-
-  info "Enabling and starting service..."
-  sudo systemctl daemon-reload 2>&1 | sed 's/^/  /' || true
-  sudo systemctl enable wash 2>&1 | sed 's/^/  /' || true
-  sudo systemctl start wash 2>&1 | sed 's/^/  /' || true
-
-  sleep 1
-  if systemctl is-active --quiet wash 2>/dev/null; then
-    echo ""
-    ok "Service installed and running"
-    systemctl status wash --no-pager -l 2>&1 | head -10 | sed 's/^/  /'
-  else
-    warn "Service installed but NOT running. Check: sudo systemctl status wash"
-  fi
-}
-
 # ─── Main ──────────────────────────────────────────
 clear
 echo ""
@@ -264,7 +189,6 @@ echo ""
 
 generate_config || exit 1
 build_wash || exit 1
-install_service
 
 echo ""
 ok "All done."

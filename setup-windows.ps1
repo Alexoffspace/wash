@@ -51,26 +51,40 @@ function Install-Go {
 
   Info "Downloading go${goVer} for Windows (${arch})..."
   try {
-    Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath -UseBasicParsing
+    Start-BitsTransfer -Source $msiUrl -Destination $msiPath
   } catch {
-    Fail "Download failed: $_"
-    return $false
+    Warn "BITS unavailable, falling back to Invoke-WebRequest..."
+    try {
+      Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath -UseBasicParsing
+    } catch {
+      Fail "Download failed: $_"
+      return $false
+    }
   }
 
   Info "Installing Go (may show UAC prompt)..."
   try {
-    Start-Process msiexec.exe -Wait -ArgumentList "/i `"$msiPath`" /quiet"
+    $proc = Start-Process msiexec.exe -Verb RunAs -Wait -PassThru -ArgumentList "/i `"$msiPath`" /quiet"
+    if ($proc.ExitCode -ne 0) {
+      Fail "MSI installation failed (exit code $($proc.ExitCode))"
+      return $false
+    }
   } catch {
     Fail "Installation failed: $_"
     return $false
   }
 
-  $goBin = "${env:ProgramFiles}\Go\bin"
+  $goBin = "${env:ProgramW6432}\Go\bin"
   $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
   if ($userPath -notlike "*${goBin}*") {
     [Environment]::SetEnvironmentVariable("PATH", "$userPath;$goBin", "User")
   }
   $env:PATH += ";${goBin}"
+
+  if (-not (Test-Path "$goBin\go.exe")) {
+    Fail "Go binary not found at ${goBin}. Installation may have failed."
+    return $false
+  }
 
   Remove-Item -Force $msiPath -ErrorAction SilentlyContinue
   Ok "Go ${goVer} installed"
@@ -153,6 +167,10 @@ function Build-Wash {
   if (-not (Check-Go)) {
     $ok = Install-Go
     if (-not $ok) { return $false }
+    if (-not (Check-Go)) {
+      Fail "Go still not available after installation. Try restarting your terminal or adding it manually."
+      return $false
+    }
   } else {
     $goVer = &go version
     $short = $goVer -replace '.*go(\S+).*', '$1'
@@ -183,64 +201,6 @@ function Build-Wash {
   return $true
 }
 
-# в”Ђв”Ђв”Ђ Service в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-function Install-Service {
-  Hdr "Service"
-
-  $install = Prompt-YN "n" "Install as Windows service?"
-  if (-not $install) { return }
-
-  $svcDir = $PWD.Path
-  $binPath = Join-Path $svcDir "WASH.exe"
-
-  Write-Host ""
-
-  $existing = Get-Service -Name "WASH" -ErrorAction SilentlyContinue
-  if ($existing) {
-    Info "Stopping and removing existing WASH service..."
-    Stop-Service -Name "WASH" -Force -ErrorAction SilentlyContinue
-    & sc.exe delete "WASH" 2>&1 | Out-Null
-    Start-Sleep -Seconds 1
-  }
-
-  $envFile = Join-Path $svcDir ".env"
-  $envArg = ""
-  if (Test-Path $envFile) {
-    $envArg = " --env-file `"$envFile`""
-  }
-
-  Info "Creating service..."
-  try {
-    New-Service -Name "WASH" `
-      -BinaryPathName "`"$binPath`"${envArg}" `
-      -DisplayName "WASH (Web Accessible Shell)" `
-      -Description "Web-based shell terminal with REST API and WebSocket" `
-      -StartupType Automatic | Out-Null
-    Ok "Service created"
-  } catch {
-    Fail "Failed to create service: $_"
-    return
-  }
-
-  Info "Configuring failure recovery..."
-  & sc.exe failure "WASH" reset=86400 actions=restart/5000/restart/10000/restart/30000 2>&1 | Out-Null
-
-  Info "Starting service..."
-  Start-Service -Name "WASH" -ErrorAction SilentlyContinue
-
-  Start-Sleep -Seconds 1
-  $svc = Get-Service -Name "WASH" -ErrorAction SilentlyContinue
-  if ($svc -and $svc.Status -eq "Running") {
-    Write-Host ""
-    Ok "Service installed and running"
-    Write-Host "  Status: $($svc.Status)"
-    Write-Host "  Name:   $($svc.Name)"
-  } else {
-    Warn "Service installed but NOT running. Check: Get-Service WASH"
-  }
-}
-
-# в”Ђв”Ђв”Ђ Main в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 Clear-Host
 Write-Host ""
 Write-Host "  ${B}====== WASH -- Setup & Build ======${N}"
@@ -251,8 +211,6 @@ if (-not $ok) { exit 1 }
 
 $ok = Build-Wash
 if (-not $ok) { exit 1 }
-
-Install-Service
 
 Write-Host ""
 Ok "All done."

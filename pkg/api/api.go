@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"WASH/pkg/auth"
@@ -524,52 +523,6 @@ func getMemoryInfo() MemoryInfo {
 		}
 
 		// Recalculate percentage
-		if info.Total > 0 {
-			info.UsedPct = float64(info.Used) / float64(info.Total) * 100
-		}
-	}
-
-	return info
-}
-
-// getDiskInfo returns disk information
-func getDiskInfo() DiskInfo {
-	info := DiskInfo{
-		MountPoint: "/",
-	}
-
-	if runtime.GOOS == "windows" {
-		cmd := exec.Command("powershell", "-Command", "Get-Volume | Select-Object DriveLetter, Size, SizeRemaining | ConvertTo-Json")
-		output, err := cmd.Output()
-		if err == nil {
-			// Parse JSON output
-			var volumes []map[string]interface{}
-			if err := json.Unmarshal(output, &volumes); err == nil && len(volumes) > 0 {
-				vol := volumes[0]
-				if size, ok := vol["Size"].(float64); ok {
-					info.Total = uint64(size)
-				}
-				if remaining, ok := vol["SizeRemaining"].(float64); ok {
-					info.Free = uint64(remaining)
-					info.Used = info.Total - info.Free
-					if info.Total > 0 {
-						info.UsedPct = float64(info.Used) / float64(info.Total) * 100
-					}
-				}
-				if driveLetter, ok := vol["DriveLetter"].(string); ok {
-					info.MountPoint = driveLetter + ":"
-				}
-			}
-		}
-		return info
-	}
-
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs("/", &stat); err == nil {
-		info.Total = stat.Blocks * uint64(stat.Bsize)
-		info.Free = stat.Bfree * uint64(stat.Bsize)
-		info.Used = info.Total - info.Free
-
 		if info.Total > 0 {
 			info.UsedPct = float64(info.Used) / float64(info.Total) * 100
 		}

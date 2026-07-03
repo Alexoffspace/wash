@@ -6,10 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"syscall"
-	"time"
-
-	"github.com/creack/pty"
 )
 
 func DefaultShell() string {
@@ -47,71 +43,10 @@ func RunCommand(cmd string, workDir string) (*CommandOutput, error) {
 
 type Session struct {
 	cmd    *exec.Cmd
-	ptty   *os.File
+	ptty   io.ReadWriteCloser
 	output chan []byte
 	done   chan struct{}
 	closed bool
-}
-
-func NewSession(shellCommand, workDir string, rows, cols int) (*Session, error) {
-	if shellCommand == "" {
-		shellCommand = DefaultShell()
-	}
-	cmd := exec.Command(shellCommand)
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
-	if workDir != "" {
-		cmd.Dir = workDir
-	}
-
-	if rows <= 0 {
-		rows = 24
-	}
-	if cols <= 0 {
-		cols = 80
-	}
-
-	ptty, tty, err := pty.Open()
-	if err != nil {
-		return nil, err
-	}
-
-	pty.Setsize(ptty, &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)})
-
-	cmd.Stdin = tty
-	cmd.Stdout = tty
-	cmd.Stderr = tty
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setctty: true,
-		Setsid:  true,
-	}
-
-	if err := cmd.Start(); err != nil {
-		ptty.Close()
-		tty.Close()
-		return nil, err
-	}
-
-	tty.Close()
-
-	output := make(chan []byte, 256)
-	done := make(chan struct{})
-
-	session := &Session{
-		cmd:    cmd,
-		ptty:   ptty,
-		output: output,
-		done:   done,
-	}
-
-	go session.readLoop()
-
-	go func() {
-		cmd.Wait()
-		close(done)
-	}()
-
-	return session, nil
 }
 
 func (s *Session) readLoop() {
@@ -120,7 +55,7 @@ func (s *Session) readLoop() {
 		n, err := s.ptty.Read(buf)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("shell: PTY read error: %v", err)
+				log.Printf("shell: session read error: %v", err)
 			}
 			close(s.output)
 			return
@@ -144,17 +79,6 @@ func (s *Session) Output() <-chan []byte {
 	return s.output
 }
 
-func (s *Session) Resize(rows, cols int) error {
-	if rows <= 0 {
-		rows = 24
-	}
-	if cols <= 0 {
-		cols = 80
-	}
-	ws := &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)}
-	return pty.Setsize(s.ptty, ws)
-}
-
 func (s *Session) ReadStdout() string {
 	return ""
 }
@@ -172,23 +96,5 @@ func (s *Session) IsRunning() bool {
 		return false
 	default:
 		return true
-	}
-}
-
-func (s *Session) Close() {
-	if s.closed {
-		return
-	}
-	s.closed = true
-
-	_ = s.ptty.Close()
-
-	if s.cmd != nil && s.cmd.Process != nil {
-		s.cmd.Process.Signal(syscall.SIGTERM)
-		select {
-		case <-s.done:
-		case <-time.After(3 * time.Second):
-			s.cmd.Process.Kill()
-		}
 	}
 }
