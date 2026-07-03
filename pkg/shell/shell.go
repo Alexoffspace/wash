@@ -5,11 +5,19 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
 )
+
+func DefaultShell() string {
+	if runtime.GOOS == "windows" {
+		return "powershell"
+	}
+	return "sh"
+}
 
 type CommandOutput struct {
 	Stdout   string
@@ -18,7 +26,7 @@ type CommandOutput struct {
 }
 
 func RunCommand(cmd string, workDir string) (*CommandOutput, error) {
-	c := exec.Command("sh", "-c", cmd)
+	c := exec.Command(DefaultShell(), "-c", cmd)
 	if workDir != "" {
 		c.Dir = workDir
 	}
@@ -47,7 +55,7 @@ type Session struct {
 
 func NewSession(shellCommand, workDir string, rows, cols int) (*Session, error) {
 	if shellCommand == "" {
-		shellCommand = "sh"
+		shellCommand = DefaultShell()
 	}
 	cmd := exec.Command(shellCommand)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")

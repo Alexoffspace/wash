@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ProjectDir
@@ -6,7 +6,7 @@ Set-Location $ProjectDir
 $R = "$([char]27)[0;31m"; $G = "$([char]27)[0;32m"
 $C = "$([char]27)[0;36m"; $Y = "$([char]27)[1;33m"
 $B = "$([char]27)[1m"; $D = "$([char]27)[2m"; $N = "$([char]27)[0m"
-$CHECK = "$([char]0x2713)"
+$CHECK = "v"
 
 function Info  { Write-Host "  ${C}$args${N}" }
 function Ok    { Write-Host "  ${CHECK} ${G}$args${N}" }
@@ -28,7 +28,7 @@ function Prompt-Val($msg, $def) {
   return $ans
 }
 
-# ─── Go ─────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Go в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function Check-Go {
   return (Get-Command "go" -ErrorAction SilentlyContinue) -ne $null
 }
@@ -77,7 +77,7 @@ function Install-Go {
   return $true
 }
 
-# ─── Config ─────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Config в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function Generate-Config {
   Hdr "Configuration"
 
@@ -87,7 +87,7 @@ function Generate-Config {
   $token_val = ""
   $port = "9091"
   $allow_0 = "false"
-  $shell = "sh"
+  $shell = "powershell"
   $work_dir = ""
 
   if (Prompt-YN "y" "Enable OS authentication?") { $os_auth = "true" } else { $os_auth = "false" }
@@ -105,7 +105,7 @@ function Generate-Config {
   }
   $port = Prompt-Val "Port" $port
   if (Prompt-YN "n" "Listen on 0.0.0.0?") { $allow_0 = "true" } else { $allow_0 = "false" }
-  $shell = Prompt-Val "Shell command" $shell
+  $shell = Prompt-Val "Shell command (powershell, cmd, pwsh)" $shell
   $work_dir = Prompt-Val "Work directory (empty = home)" ""
 
   Write-Host ""
@@ -146,7 +146,7 @@ ${token_env}=${token_val}
   return $true
 }
 
-# ─── Build ──────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Build в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function Build-Wash {
   Hdr "Build"
 
@@ -183,7 +183,7 @@ function Build-Wash {
   return $true
 }
 
-# ─── Service ────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Service в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function Install-Service {
   Hdr "Service"
 
@@ -240,10 +240,10 @@ function Install-Service {
   }
 }
 
-# ─── Main ──────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Main в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 Clear-Host
 Write-Host ""
-Write-Host "  ${B}══════ WASH — Setup & Build ══════${N}"
+Write-Host "  ${B}====== WASH -- Setup & Build ======${N}"
 Write-Host ""
 
 $ok = Generate-Config

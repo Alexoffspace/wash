@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -269,10 +270,13 @@ func resolveWorkDir(cfg *config.Config) string {
 	return homeDir
 }
 
-// resolveShellCommand возвращает команду shell из конфига или "sh"
+// resolveShellCommand возвращает команду shell из конфига или платформенный дефолт
 func resolveShellCommand(cfg *config.Config) string {
 	if cfg != nil && cfg.ShellCommand != "" {
 		return cfg.ShellCommand
+	}
+	if runtime.GOOS == "windows" {
+		return "powershell"
 	}
 	return "sh"
 }
