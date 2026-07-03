@@ -88,6 +88,7 @@ The application runs as a standalone HTTP server and supports both token-based a
 ## Features
 
 - Cross-platform support (Linux, macOS, Windows)
+- **Setup scripts** — interactive TUI for Linux (`setup-linux.sh`) and Windows (`setup-windows.ps1`) with guided config, Go auto-install, system service setup
 - Interactive shell via WebSocket with PTY-based real-time output (xterm.js)
 - Configurable shell (sh, bash, zsh, fish, etc.) via config.yaml
 - REST API for scripted command execution
@@ -108,6 +109,12 @@ The application runs as a standalone HTTP server and supports both token-based a
 ```bash
 git clone <repository-url>
 cd WAShell
+
+# Interactive setup (recommended — TUI with config + build + service)
+bash setup-linux.sh                    # Linux
+powershell -File setup-windows.ps1     # Windows
+
+# Or manual build
 go build -o WASH
 ```
 
@@ -282,6 +289,10 @@ WASH/
 ## Building from Source
 
 ```bash
+# Interactive setup (recommended)
+bash setup-linux.sh                    # Linux
+powershell -File setup-windows.ps1     # Windows
+
 # Build for current platform
 go build -o WASH
 

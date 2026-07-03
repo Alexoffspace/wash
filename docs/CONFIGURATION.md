@@ -143,6 +143,8 @@ If you're currently using only CLI arguments, you can migrate to config.yaml:
 3. Remove CLI arguments and run `./WASH`
 4. Verify behavior matches your previous CLI-based setup
 
+Alternatively, use the interactive setup scripts (`setup-linux.sh` / `setup-windows.ps1`) which guide you through configuration in a TUI and generate `config.yaml` and `.env` automatically.
+
 ## Troubleshooting
 
 **Config not loading:**

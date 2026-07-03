@@ -119,6 +119,12 @@ Automated test suite:
 ```bash
 git clone <repository>
 cd WAShell
+
+# Interactive setup (recommended — TUI with config + build + service)
+bash setup-linux.sh                    # Linux
+powershell -File setup-windows.ps1     # Windows
+
+# Or manual build
 go build -o WASH
 ```
 

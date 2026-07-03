@@ -20,7 +20,7 @@
 
 **WASH** is a cross-platform Go application that provides remote shell access through three interfaces:
 
-1. **WebSocket** (`/ws`) — PTY-based shell protocol for custom clients (key input, resize events, raw ANSI output).
+1. **WebSocket** (`/ws`) — PTY-based shell protocol for custom clients.
 2. **REST API** (`POST /api/command`) — single-command execution via HTTP POST with JSON request/response.
 3. **Web GUI** (`GET /`) — browser-based xterm.js terminal with auth screen, theme toggle, auto-reconnect, and system status bar.
 
@@ -31,7 +31,11 @@
 ## Quick Start
 
 ```bash
-# Build
+# Interactive setup (recommended for first install)
+bash setup-linux.sh          # Linux
+powershell -File setup-windows.ps1   # Windows
+
+# Or manual build
 go build -o WASH
 
 # Run with token authentication
@@ -46,6 +50,7 @@ Enter your token (or OS credentials) and click Connect to access the xterm.js te
 
 ## Features
 
+- ✅ **Setup scripts** — interactive TUI for Linux (`setup-linux.sh`) and Windows (`setup-windows.ps1`) with auto-install of Go, config generation, system service setup
 - ✅ Cross-platform support (Linux, macOS, Windows)
 - ✅ Interactive PTY-based shell via WebSocket with xterm.js
 - ✅ Configurable shell (sh, bash, zsh, fish) via config.yaml
