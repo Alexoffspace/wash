@@ -20,6 +20,9 @@ vendor/
 go.work
 go.work.sum
 
+# Config file (use docs/CONFIGURATION.md as reference)
+config.yaml
+
 # Binary which might be used in build process
 WASH
 WASH.exe
