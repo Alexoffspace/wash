@@ -13,6 +13,7 @@
             -webkit-text-size-adjust: 100%;
         }
         body {
+            --glass-alpha: 0.6;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
             background-attachment: fixed;
@@ -24,6 +25,7 @@
             overflow: hidden;
         }
         body.light {
+            --glass-alpha: 0.7;
             background: #E0EAFC;
             background-size: cover;
             background-position: center;
@@ -50,7 +52,7 @@
             pointer-events: none;
         }
         .login-box {
-            background: rgb(0 0 0 / 60%);
+            background: rgb(0 0 0 / var(--glass-alpha));
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             padding: 30px 40px 20px 40px; border-radius: 20px;
@@ -115,7 +117,7 @@
             pointer-events: auto;
         }
         .term-header {
-            background: rgb(0 0 0 / 60%);
+            background: rgb(0 0 0 / var(--glass-alpha));
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             padding: 15px 20px; display: flex;
@@ -202,7 +204,7 @@
             top: 56px;
             left: 0;
             right: 0;
-            background: rgb(0 0 0 / 60%);
+            background: rgb(0 0 0 / var(--glass-alpha));
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             padding: 16px;
@@ -275,33 +277,175 @@
             border-color: rgba(233, 69, 96, 0.5);
             box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
         }
-        .term-header .btn-theme,
-        .term-header .btn-logout,
-        .term-header .btn-new-session {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #eee;
-            padding: 8px 14px;
-            font-size: 0.9em;
+        .dropdown-slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 0;
+            width: 100%;
+        }
+        .dropdown-slider-row label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85em;
+            text-align: center;
+            font-weight: 500;
+        }
+        .dropdown-slider-row input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
             cursor: pointer;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
+        }
+        .dropdown-slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e94560;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+        }
+        .dropdown-slider-row input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e94560;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+        }
+        body.light .dropdown-slider-row label {
+            color: rgba(0, 0, 0, 0.7);
+        }
+        body.light .dropdown-slider-row input[type="range"] {
+            background: rgba(0, 0, 0, 0.15);
+        }
+        .icon-panel {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 3px;
+            gap: 2px;
+        }
+        .icon-panel-btn {
+            position: relative;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            border-radius: 9px;
+            transition: all 0.25s ease;
+            padding: 0;
         }
-        .term-header .btn-theme {
-            gap: 4px;
-            padding: 8px 12px;
+        .icon-panel-btn svg {
+            width: 18px;
+            height: 18px;
+            display: block;
         }
-        .term-header .btn-theme:hover,
-        .term-header .btn-logout:hover,
-        .term-header .btn-new-session:hover {
-            background: rgba(233, 69, 96, 0.4);
-            border-color: rgba(233, 69, 96, 0.5);
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+        .icon-panel-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+        .icon-panel-btn[data-tooltip="Theme"]:hover {
+            background: rgba(255, 171, 53, 0.25);
+            color: #ffb300;
+        }
+        .icon-panel-btn[data-tooltip="Transparency"]:hover {
+            background: rgba(0, 188, 212, 0.25);
+            color: #00bcd4;
+        }
+        .icon-panel-btn[data-tooltip="New Session"]:hover {
+            background: rgba(76, 175, 80, 0.25);
+            color: #4caf50;
+        }
+        .icon-panel-btn[data-tooltip="Logout"]:hover {
+            background: rgba(233, 69, 96, 0.3);
+            color: #e94560;
+        }
+        .icon-panel-btn[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: calc(100% + 7px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #eee;
+            font-size: 0.72em;
+            font-weight: 500;
+            padding: 4px 9px;
+            border-radius: 7px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .icon-panel-btn[data-tooltip]::before {
+            content: '';
+            position: absolute;
+            top: calc(100% + 3px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-bottom-color: rgba(0, 0, 0, 0.85);
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+        .icon-panel-btn[data-tooltip]:hover::after,
+        .icon-panel-btn[data-tooltip]:hover::before {
+            opacity: 1;
+        }
+        body.light .icon-panel-btn[data-tooltip]::after {
+            background: rgba(255, 255, 255, 0.92);
+            color: #333;
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        body.light .icon-panel-btn[data-tooltip]::before {
+            border-bottom-color: rgba(255, 255, 255, 0.92);
+        }
+        body.light .icon-panel {
+            background: rgba(0, 0, 0, 0.04);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        body.light .icon-panel-btn {
+            color: rgba(0, 0, 0, 0.6);
+        }
+        body.light .icon-panel-btn:hover {
+            background: rgba(0, 0, 0, 0.06);
+            color: #000;
+        }
+        body.light .icon-panel-btn[data-tooltip="Theme"]:hover {
+            background: rgba(255, 171, 53, 0.15);
+            color: #e68900;
+        }
+        body.light .icon-panel-btn[data-tooltip="Transparency"]:hover {
+            background: rgba(0, 188, 212, 0.12);
+            color: #00838f;
+        }
+        body.light .icon-panel-btn[data-tooltip="New Session"]:hover {
+            background: rgba(76, 175, 80, 0.12);
+            color: #2e7d32;
+        }
+        body.light .icon-panel-btn[data-tooltip="Logout"]:hover {
+            background: rgba(233, 69, 96, 0.15);
+            color: #c62828;
         }
         #terminal-container {
             flex: 1;
@@ -314,7 +458,7 @@
             height: 100%;
             padding: 15px;
             border-radius: 10px;
-            background: rgb(0 0 0 / 60%);
+            background: rgb(0 0 0 / var(--glass-alpha));
             box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
@@ -326,7 +470,7 @@
             height: 100%;
         }
         body.light #terminal-wrapper {
-            background: rgb(255 255 255 / 70%);
+            background: rgb(255 255 255 / var(--glass-alpha));
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             outline-color: rgba(255, 255, 255, 0.6);
         }
@@ -430,7 +574,7 @@
         }
 
         body.light .login-box {
-            background: rgb(255 255 255 / 70%);
+            background: rgb(255 255 255 / var(--glass-alpha));
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -451,7 +595,7 @@
         body.light .form-group input:focus,
         body.light .form-group select:focus { border-color: #e94560; background: rgba(255, 255, 255, 0.9); box-shadow: 0 0 20px rgba(233, 69, 96, 0.2); }
         body.light .term-header {
-            background: rgb(255 255 255 / 70%);
+            background: rgb(255 255 255 / var(--glass-alpha));
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             color: #333;
@@ -464,33 +608,8 @@
         body.light .term-header #host-info { color: rgba(0, 0, 0, 0.7); }
         body.light .term-header .status-item { color: rgba(0, 0, 0, 0.75); }
         body.light .term-header .status-item svg { opacity: 0.7; }
-        body.light .term-header .btn-theme,
-        body.light .term-header .btn-logout,
-        body.light .term-header .btn-new-session {
-            background: rgba(255, 255, 255, 0.6);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            color: #333;
-            padding: 8px 14px;
-            font-size: 0.9em;
-            cursor: pointer;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        body.light .term-header .btn-theme { padding: 8px 12px; gap: 4px; }
-        body.light .term-header .btn-theme:hover,
-        body.light .term-header .btn-logout:hover,
-        body.light .term-header .btn-new-session:hover {
-            background: rgba(233, 69, 96, 0.2);
-            border-color: rgba(233, 69, 96, 0.3);
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.2);
-        }
         body.light .header-dropdown {
-            background: rgb(255 255 255 / 70%);
+            background: rgb(255 255 255 / var(--glass-alpha));
             outline: 1px solid rgba(255, 255, 255, 0.6);
         }
         body.light .header-dropdown .user-info,
@@ -616,6 +735,82 @@
             border-color: #e94560;
         }
 
+        .glass-popover {
+            position: fixed;
+            background: rgb(0 0 0 / var(--glass-alpha));
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 200px;
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .glass-popover.open {
+            display: flex;
+        }
+        .glass-popover label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85em;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .glass-popover label span {
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 400;
+        }
+        .glass-popover input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .glass-popover input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e94560;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .glass-popover input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        .glass-popover input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e94560;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+        }
+        body.light .glass-popover {
+            background: rgb(255 255 255 / var(--glass-alpha));
+            border-color: rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        body.light .glass-popover label {
+            color: rgba(0, 0, 0, 0.8);
+        }
+        body.light .glass-popover label span {
+            color: rgba(0, 0, 0, 0.5);
+        }
+        body.light .glass-popover input[type="range"] {
+            background: rgba(0, 0, 0, 0.15);
+        }
         @media (max-width: 768px) {
             .login-box {
                 width: 95vw;
@@ -682,7 +877,7 @@
                     <label for="input-password">Password</label>
                     <input type="password" id="input-password" placeholder="Enter password">
                 </div>
-                <button type="submit" class="btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M8 8c0-.575 0-.822.045-1.075A2.98 2.98 0 0 1 9.833 4.7c.24-.1.523-.165 1.09-.294l2.728-.623c3.39-.774 5.084-1.161 6.217-.27C21 4.405 21 6.126 21 9.568v4.864c0 3.442 0 5.164-1.132 6.055c-1.133.891-2.827.504-6.217-.27l-2.728-.623c-.567-.13-.85-.194-1.09-.294a2.98 2.98 0 0 1-1.788-2.225C8 16.822 8 16.575 8 16"/><path d="M13 9s3 2.21 3 3s-3 3-3 3m2.5-3H3"/></g></svg> Connect</button>
+                <button type="submit" class="btn" title="Connect"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M8 8c0-.575 0-.822.045-1.075A2.98 2.98 0 0 1 9.833 4.7c.24-.1.523-.165 1.09-.294l2.728-.623c3.39-.774 5.084-1.161 6.217-.27C21 4.405 21 6.126 21 9.568v4.864c0 3.442 0 5.164-1.132 6.055c-1.133.891-2.827.504-6.217-.27l-2.728-.623c-.567-.13-.85-.194-1.09-.294a2.98 2.98 0 0 1-1.788-2.225C8 16.822 8 16.575 8 16"/><path d="M13 9s3 2.21 3 3s-3 3-3 3m2.5-3H3"/></g></svg></button>
                 <div class="login-error" id="login-error"></div>
             </form>
         </div>
@@ -695,22 +890,34 @@
             <div class="header-actions">
                 <span class="user-info" id="user-info"></span>
                 <span class="header-divider"></span>
-                <button class="btn-theme" id="btn-theme" title="Toggle theme"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path d="M12 11.807A9.002 9.002 0 0 1 10.049 2a9.942 9.942 0 0 0-5.12 2.735c-3.905 3.905-3.905 10.237 0 14.142c3.906 3.906 10.237 3.905 14.143 0a9.946 9.946 0 0 0 2.735-5.119A9.003 9.003 0 0 1 12 11.807z" fill="currentColor"/></svg><span class="theme-label"></span></button>
-                <button class="btn-new-session" id="btn-new-session" title="New Session"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h5q.425 0 .713.288T11 4t-.288.713T10 5H5v14h14v-5q0-.425.288-.712T20 13t.713.288T21 14v5q0 .825-.587 1.413T19 21zM16 8h-2q-.425 0-.712-.288T13 7t.288-.712T14 6h2V4q0-.425.288-.712T17 3t.713.288T18 4v2h2q.425 0 .713.288T21 7t-.288.713T20 8h-2v2q0 .425-.288.713T17 11t-.712-.288T16 10z"/></svg> New Session</button>
-                <button class="btn-logout" id="btn-logout" title="Logout"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="m17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z"/></svg> Logout</button>
+                <div class="icon-panel">
+                    <button class="icon-panel-btn" id="btn-theme" data-tooltip="Theme" aria-label="Toggle theme"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11.807A9.002 9.002 0 0 1 10.049 2a9.942 9.942 0 0 0-5.12 2.735c-3.905 3.905-3.905 10.237 0 14.142c3.906 3.906 10.237 3.905 14.143 0a9.946 9.946 0 0 0 2.735-5.119A9.003 9.003 0 0 1 12 11.807z" fill="currentColor"/></svg></button>
+                    <button class="icon-panel-btn" id="btn-glass" data-tooltip="Transparency" aria-label="Transparency"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><path d="M12.526 41c.552 2.024 2.29 3.486 4.473 3.643c2.556.184 6.336.357 11.5.357c5.134 0 8.898-.171 11.453-.354c2.557-.182 4.512-2.136 4.694-4.694c.183-2.555.354-6.32.354-11.452c0-5.165-.173-8.944-.357-11.5c-.157-2.183-1.62-3.922-3.643-4.473"/><path d="M3.354 8.048C3.536 5.49 5.49 3.536 8.048 3.354C10.603 3.17 14.368 3 19.5 3c5.133 0 8.897.171 11.452.354c2.558.182 4.512 2.136 4.694 4.694c.183 2.555.354 6.32.354 11.452s-.171 8.897-.354 11.453c-.182 2.557-2.136 4.51-4.694 4.693c-2.555.183-6.32.354-11.452.354c-5.133 0-8.897-.171-11.452-.354c-2.558-.182-4.512-2.136-4.694-4.694C3.17 28.398 3 24.633 3 19.5s.171-8.897.354-11.452"/><path d="M35.867 12.133c.08 2.045.133 4.491.133 7.367c0 5.133-.171 8.897-.354 11.453c-.182 2.557-2.136 4.51-4.694 4.693c-2.555.183-6.32.354-11.452.354c-2.876 0-5.322-.054-7.367-.133A191 191 0 0 1 12 28.5c0-5.133.171-8.897.354-11.452c.182-2.558 2.136-4.512 4.694-4.694C19.603 12.17 23.368 12 28.5 12c2.876 0 5.322.054 7.367.133M5 5l29 29M17 3l19 19M22 36L3 17"/></g></svg></button>
+                    <button class="icon-panel-btn" id="btn-new-session" data-tooltip="New Session" aria-label="New Session"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h5q.425 0 .713.288T11 4t-.288.713T10 5H5v14h14v-5q0-.425.288-.712T20 13t.713.288T21 14v5q0 .825-.587 1.413T19 21zM16 8h-2q-.425 0-.712-.288T13 7t.288-.712T14 6h2V4q0-.425.288-.712T17 3t.713.288T18 4v2h2q.425 0 .713.288T21 7t-.288.713T20 8h-2v2q0 .425-.288.713T17 11t-.712-.288T16 10z"/></svg></button>
+                    <button class="icon-panel-btn" id="btn-logout" data-tooltip="Logout" aria-label="Logout"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="m17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z"/></svg></button>
+                </div>
             </div>
             <button class="hamburger-btn" id="hamburger-btn" title="Menu">
                 <span></span><span></span><span></span>
             </button>
         </div>
+        <div class="glass-popover" id="glass-popover">
+            <label>Transparency <span id="glass-label">60%</span></label>
+            <input type="range" id="glass-slider" min="0" max="100" value="59">
+        </div>
         <div class="header-dropdown-backdrop" id="header-dropdown-backdrop"></div>
         <div class="header-dropdown" id="header-dropdown">
             <div class="user-info" id="user-info-mobile"></div>
             <div class="header-dropdown-divider"></div>
+            <div class="dropdown-slider-row">
+                <label for="glass-slider-mobile">Transparency</label>
+                <input type="range" id="glass-slider-mobile" min="0" max="100">
+            </div>
+            <div class="header-dropdown-divider"></div>
             <div class="header-dropdown-actions">
-                <button class="btn-theme" id="btn-theme-mobile" title="Toggle theme"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M12 11.807A9.002 9.002 0 0 1 10.049 2a9.942 9.942 0 0 0-5.12 2.735c-3.905 3.905-3.905 10.237 0 14.142c3.906 3.906 10.237 3.905 14.143 0a9.946 9.946 0 0 0 2.735-5.119A9.003 9.003 0 0 1 12 11.807z" fill="currentColor"/></svg><span>Theme</span></button>
-                <button class="btn-new-session" id="btn-new-session-mobile" title="New Session"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h5q.425 0 .713.288T11 4t-.288.713T10 5H5v14h14v-5q0-.425.288-.712T20 13t.713.288T21 14v5q0 .825-.587 1.413T19 21zM16 8h-2q-.425 0-.712-.288T13 7t.288-.712T14 6h2V4q0-.425.288-.712T17 3t.713.288T18 4v2h2q.425 0 .713.288T21 7t-.288.713T20 8h-2v2q0 .425-.288.713T17 11t-.712-.288T16 10z"/></svg> New</button>
-                <button class="btn-logout" id="btn-logout-mobile" title="Logout"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="m17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z"/></svg> Logout</button>
+                <button class="btn-theme" id="btn-theme-mobile" title="Toggle theme"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M12 11.807A9.002 9.002 0 0 1 10.049 2a9.942 9.942 0 0 0-5.12 2.735c-3.905 3.905-3.905 10.237 0 14.142c3.906 3.906 10.237 3.905 14.143 0a9.946 9.946 0 0 0 2.735-5.119A9.003 9.003 0 0 1 12 11.807z" fill="currentColor"/></svg></button>
+                <button class="btn-new-session" id="btn-new-session-mobile" title="New Session"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h5q.425 0 .713.288T11 4t-.288.713T10 5H5v14h14v-5q0-.425.288-.712T20 13t.713.288T21 14v5q0 .825-.587 1.413T19 21zM16 8h-2q-.425 0-.712-.288T13 7t.288-.712T14 6h2V4q0-.425.288-.712T17 3t.713.288T18 4v2h2q.425 0 .713.288T21 7t-.288.713T20 8h-2v2q0 .425-.288.713T17 11t-.712-.288T16 10z"/></svg></button>
+                <button class="btn-logout" id="btn-logout-mobile" title="Logout"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="m17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z"/></svg></button>
             </div>
         </div>
         <div id="terminal-container"><div id="terminal-wrapper"><div id="xterm-clip"></div></div></div>
@@ -854,9 +1061,7 @@
         const MOON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M12 11.807A9.002 9.002 0 0 1 10.049 2a9.942 9.942 0 0 0-5.12 2.735c-3.905 3.905-3.905 10.237 0 14.142c3.906 3.906 10.237 3.905 14.143 0a9.946 9.946 0 0 0 2.735-5.119A9.003 9.003 0 0 1 12 11.807z" fill="currentColor"/></svg>';
 
         function themeBtnHTML(isLight) {
-            const svg = isLight ? MOON_SVG : SUN_SVG;
-            const label = isLight ? 'Dark' : 'Light';
-            return svg + '<span class="theme-label">' + label + '</span>';
+            return isLight ? MOON_SVG : SUN_SVG;
         }
 
         function applyTermTheme() {
@@ -909,12 +1114,70 @@
             localStorage.setItem('theme', isLight ? 'light' : 'dark');
             applyTermTheme();
             setRandomBg(isLight);
+            const savedOpacity = localStorage.getItem('glass-opacity');
+            if (savedOpacity !== null) applyGlassOpacity(parseInt(savedOpacity, 10));
+        }
+
+        function glassValueToAlpha(value) {
+            return 0.1 + (value / 100) * 0.85;
+        }
+
+        function applyGlassOpacity(value) {
+            const alpha = glassValueToAlpha(value);
+            document.body.style.setProperty('--glass-alpha', alpha);
+        }
+
+        function initGlassOpacity() {
+            const saved = localStorage.getItem('glass-opacity');
+            const isLight = document.body.classList.contains('light');
+            const defaultValue = isLight ? 71 : 59;
+            const value = saved !== null ? parseInt(saved, 10) : defaultValue;
+            const slider = document.getElementById('glass-slider');
+            const sliderMobile = document.getElementById('glass-slider-mobile');
+            const label = document.getElementById('glass-label');
+            if (slider) slider.value = value;
+            if (sliderMobile) sliderMobile.value = value;
+            if (label) label.textContent = Math.round(glassValueToAlpha(value) * 100) + '%';
+            applyGlassOpacity(value);
         }
 
         btnTheme.addEventListener('click', toggleTheme);
         document.getElementById('btn-theme-login').addEventListener('click', toggleTheme);
         document.getElementById('btn-new-session').addEventListener('click', () => { location.reload(); });
         initTheme();
+        initGlassOpacity();
+
+        const btnGlass = document.getElementById('btn-glass');
+        const glassPopover = document.getElementById('glass-popover');
+        if (btnGlass && glassPopover) {
+            btnGlass.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const rect = btnGlass.getBoundingClientRect();
+                glassPopover.style.top = (rect.bottom + 8) + 'px';
+                glassPopover.style.right = (window.innerWidth - rect.right) + 'px';
+                glassPopover.classList.toggle('open');
+            });
+            document.addEventListener('click', (e) => {
+                if (!glassPopover.contains(e.target) && e.target !== btnGlass && !btnGlass.contains(e.target)) {
+                    glassPopover.classList.remove('open');
+                }
+            });
+        }
+
+        const glassSlider = document.getElementById('glass-slider');
+        const glassSliderMobile = document.getElementById('glass-slider-mobile');
+        const glassLabel = document.getElementById('glass-label');
+        function handleGlassSliderChange(e) {
+            const value = parseInt(e.target.value, 10);
+            if (glassSlider) glassSlider.value = value;
+            if (glassSliderMobile) glassSliderMobile.value = value;
+            const alpha = glassValueToAlpha(value);
+            if (glassLabel) glassLabel.textContent = Math.round(alpha * 100) + '%';
+            applyGlassOpacity(value);
+            localStorage.setItem('glass-opacity', value);
+        }
+        if (glassSlider) glassSlider.addEventListener('input', handleGlassSliderChange);
+        if (glassSliderMobile) glassSliderMobile.addEventListener('input', handleGlassSliderChange);
 
         authMethodRadios.forEach(radio => {
             radio.addEventListener('change', () => {
