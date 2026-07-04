@@ -50,9 +50,11 @@ Enter your token (or OS credentials) and click Connect to access the xterm.js te
 
 ## Features
 
-- ✅ **Setup scripts** — interactive TUI for Linux (`setup-linux.sh`) and Windows (`setup-windows.ps1`) with auto-install of Go, config generation, system service setup
+- ✅ **Setup scripts** — interactive TUI for Linux (`setup-linux.sh`) and Windows (`setup-windows.ps1`) with auto-install of Go and config generation
 - ✅ Cross-platform support (Linux, macOS, Windows)
 - ✅ Interactive PTY-based shell via WebSocket with xterm.js
+- ✅ Windows ConPTY support with OEM/ANSI codepage decoding
+- ✅ Real system metrics (CPU, memory, uptime) via WMI on Windows, sysctl on macOS
 - ✅ Configurable shell (sh, bash, zsh, fish) via config.yaml
 - ✅ REST API for scripted command execution
 - ✅ Token-based authentication

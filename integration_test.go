@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -152,6 +153,7 @@ func TestAPIHandler(t *testing.T) {
 		body          string
 		expectedCode  int
 		expectedError string
+		validateBody  func(*testing.T, []byte)
 	}{
 		{
 			name:         "unauthorized request",
@@ -183,6 +185,26 @@ func TestAPIHandler(t *testing.T) {
 			path:         "/api/status",
 			headers:      map[string]string{"X-Auth-Token": "test-api-token"},
 			expectedCode: http.StatusOK,
+			validateBody: func(t *testing.T, body []byte) {
+				var resp api.SystemInfoResponse
+				if err := json.Unmarshal(body, &resp); err != nil {
+					t.Fatalf("Failed to parse status response: %v", err)
+				}
+				if resp.CPU.Cores <= 0 {
+					t.Error("CPU cores should be > 0")
+				}
+				if resp.CPU.UsagePct < -1 || resp.CPU.UsagePct > 100 {
+					t.Errorf("CPU usage_pct out of range: %f", resp.CPU.UsagePct)
+				}
+				if resp.Memory.Total > 0 {
+					if resp.Memory.UsedPct < 0 || resp.Memory.UsedPct > 100 {
+						t.Errorf("Memory used_pct out of range: %f", resp.Memory.UsedPct)
+					}
+				}
+				if resp.Hostname == "" {
+					t.Error("Hostname should not be empty")
+				}
+			},
 		},
 	}
 
@@ -220,6 +242,9 @@ func TestAPIHandler(t *testing.T) {
 				body, _ := io.ReadAll(resp.Body)
 				if len(body) == 0 {
 					t.Error("Expected non-empty response body")
+				}
+				if tt.validateBody != nil {
+					tt.validateBody(t, body)
 				}
 			}
 		})

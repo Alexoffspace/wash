@@ -357,12 +357,23 @@ func getOSVersion() string {
 // getSystemUptime returns system uptime string
 func getSystemUptime() string {
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("powershell", "-Command", "(Get-Date).ToString('yyyy-MM-dd HH:mm:ss')")
+		cmd := exec.Command("powershell", "-Command",
+			"[Math]::Floor(((Get-Date)-(Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalSeconds)")
 		output, err := cmd.Output()
-		if err == nil {
-			return strings.TrimSpace(string(output))
+		if err != nil {
+			return "unknown"
 		}
-		return "unknown"
+		totalSec, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+		if err != nil {
+			return "unknown"
+		}
+		days := int(totalSec) / 86400
+		hours := (int(totalSec) % 86400) / 3600
+		mins := (int(totalSec) % 3600) / 60
+		if days > 0 {
+			return fmt.Sprintf("%dd %dh %dm", days, hours, mins)
+		}
+		return fmt.Sprintf("%dh %dm", hours, mins)
 	}
 	cmd := exec.Command("uptime")
 	output, err := cmd.Output()
@@ -420,8 +431,22 @@ var (
 )
 
 // getRealCPUUsage reads /proc/stat and calculates actual CPU usage percentage.
-// Returns -1 if unavailable (non-Linux or first call).
+// Returns -1 if unavailable (non-Linux, non-Windows, or first call on Linux).
 func getRealCPUUsage() float64 {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("powershell", "-Command",
+			"(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average")
+		output, err := cmd.Output()
+		if err != nil {
+			return -1
+		}
+		pct, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+		if err != nil {
+			return -1
+		}
+		return pct
+	}
+
 	if runtime.GOOS != "linux" {
 		return -1
 	}
@@ -477,23 +502,21 @@ func getRealCPUUsage() float64 {
 func getMemoryInfo() MemoryInfo {
 	info := MemoryInfo{}
 
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	info.Total = memStats.TotalAlloc
-	info.Used = memStats.Alloc
-	info.Free = memStats.TotalAlloc - memStats.Alloc
-
-	if info.Total > 0 {
-		info.UsedPct = float64(info.Used) / float64(info.Total) * 100
-	}
-
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("powershell", "-Command", "[System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::StringToBSTR([System.Diagnostics.Process]::GetCurrentProcess().WorkingSet))")
+		cmd := exec.Command("powershell", "-Command",
+			"$os=Get-CimInstance Win32_OperatingSystem; $os.TotalVisibleMemorySize.ToString()+','+$os.FreePhysicalMemory.ToString()")
 		output, err := cmd.Output()
 		if err == nil {
-			if size, err := strconv.ParseUint(strings.TrimSpace(string(output)), 10, 64); err == nil {
-				info.Used = size
+			parts := strings.Split(strings.TrimSpace(string(output)), ",")
+			if len(parts) == 2 {
+				totalKB, err1 := strconv.ParseUint(parts[0], 10, 64)
+				freeKB, err2 := strconv.ParseUint(parts[1], 10, 64)
+				if err1 == nil && err2 == nil && totalKB > 0 {
+					info.Total = totalKB * 1024
+					info.Free = freeKB * 1024
+					info.Used = info.Total - info.Free
+					info.UsedPct = float64(info.Used) / float64(info.Total) * 100
+				}
 			}
 		}
 		return info
@@ -525,6 +548,45 @@ func getMemoryInfo() MemoryInfo {
 		// Recalculate percentage
 		if info.Total > 0 {
 			info.UsedPct = float64(info.Used) / float64(info.Total) * 100
+		}
+	}
+
+	// Fallback for systems without `free` (macOS, etc.): use sysctl
+	if info.Total == 0 && runtime.GOOS == "darwin" {
+		cmd := exec.Command("sysctl", "-n", "hw.memsize")
+		output, err := cmd.Output()
+		if err == nil {
+			totalBytes, err := strconv.ParseUint(strings.TrimSpace(string(output)), 10, 64)
+			if err == nil {
+				info.Total = totalBytes
+				// Get page size and vm stats for used memory
+				pageSizeCmd := exec.Command("sysctl", "-n", "hw.pagesize")
+				pageSizeOut, _ := pageSizeCmd.Output()
+				pageSize, _ := strconv.ParseUint(strings.TrimSpace(string(pageSizeOut)), 10, 64)
+				if pageSize > 0 {
+					vmCmd := exec.Command("vm_stat")
+					vmOut, _ := vmCmd.Output()
+					if vmOut != nil {
+						var pagesFree, pagesActive, pagesWired, pagesCompressed uint64
+						for _, line := range strings.Split(string(vmOut), "\n") {
+							line = strings.TrimSpace(line)
+							if strings.HasPrefix(line, "Pages free:") {
+								pagesFree, _ = strconv.ParseUint(strings.TrimSpace(strings.TrimPrefix(line, "Pages free:")), 10, 64)
+							} else if strings.HasPrefix(line, "Pages active:") {
+								pagesActive, _ = strconv.ParseUint(strings.TrimSpace(strings.TrimPrefix(line, "Pages active:")), 10, 64)
+							} else if strings.HasPrefix(line, "Pages wired down:") {
+								pagesWired, _ = strconv.ParseUint(strings.TrimSpace(strings.TrimPrefix(line, "Pages wired down:")), 10, 64)
+							} else if strings.HasPrefix(line, "Pages occupied by compressor:") {
+								pagesCompressed, _ = strconv.ParseUint(strings.TrimSpace(strings.TrimPrefix(line, "Pages occupied by compressor:")), 10, 64)
+							}
+						}
+						usedPages := pagesActive + pagesWired + pagesCompressed
+						info.Used = usedPages * pageSize
+						info.Free = pagesFree * pageSize
+						info.UsedPct = float64(info.Used) / float64(info.Total) * 100
+					}
+				}
+			}
 		}
 	}
 

@@ -1,6 +1,6 @@
 # WASH (Web Accessible Shell) — Agent Guide
 
-Single-module Go 1.22 app (`module WASH`). Entrypoint: `main.go`. Embedded web UI via `//go:embed templates/* static/*`.
+Single-module Go 1.25 app (`module WASH`). Entrypoint: `main.go`. Embedded web UI via `//go:embed templates/* static/*`.
 
 ## Build & Run
 
@@ -25,6 +25,7 @@ go test -v -race ./...                  # with race detector
 ```
 
 - All integration tests in one file: `integration_test.go` (package `main`).
+- Unit tests: `pkg/api/api_test.go` (package `api`).
 - **Known flaky:** `TestShellSession`, `TestRunCommand/pwd` — output depends on work dir.
 - **WebSocket tests are placeholders** — they verify server starts, not real WS connections.
 
@@ -39,15 +40,18 @@ go vet ./...
 
 - **WebSocket output streaming** — 10ms `select` timeout in `ReadStdout` may miss early output (`pkg/shell/shell.go:ReadStdout`). Increase timeout or use blocking read.
 - **Rate limiting** — Duplicate rate-limiter in `api.go` (`APIAuthAttemptTracker`) separate from `ws.go`. Both work correctly now.
+- **Windows ConPTY** — `CreatePseudoConsole` requires Windows 10 1809+ / Windows Server 2019+. Falls back to pipe-based session on older Windows.
 
 ## Architecture
 
 | Package | File | Role |
 |---------|------|------|
-| `pkg/config` | `config.go` | YAML + .env loader |
+| `pkg/config` | `config.go` | YAML + .env loader (BOM-safe) |
 | `pkg/auth` | `auth.go` | Token + OS auth (su/PowerShell) |
-| `pkg/shell` | `shell.go` | `RunCommand` (one-shot) + `Session` (PTY-based interactive shell) |
-| `pkg/api` | `api.go` | REST: `POST /api/command`, `GET /api/status` |
+| `pkg/shell` | `shell.go` | `RunCommand` (one-shot) + `Session` interface |
+| `pkg/shell` | `session_unix.go` | Unix PTY session (creack/pty) |
+| `pkg/shell` | `session_windows.go` | Windows session (ConPTY + pipe fallback, OEM codepage decoding) |
+| `pkg/api` | `api.go` | REST: `POST /api/command`, `GET /api/status` (cross-platform metrics) |
 | `pkg/ws` | `ws.go` | WebSocket: `GET /ws`, session lifecycle, rate limiting, PTY I/O |
 
 Routes (stdlib `http.ServeMux`): `GET /` → embedded UI, `/ws` → WS, `/api/command` → REST, `/api/status` → status, `/static/` → embedded static.
@@ -66,5 +70,7 @@ Routes (stdlib `http.ServeMux`): `GET /` → embedded UI, `/ws` → WS, `/api/co
 ## Dependencies
 
 - `github.com/gorilla/websocket v1.5.3` (direct)
-- `github.com/creack/pty v1.1.24` (direct, PTY support)
+- `github.com/creack/pty v1.1.24` (direct, Unix PTY)
+- `golang.org/x/sys v0.46.0` (direct, Windows ConPTY)
+- `golang.org/x/text v0.38.0` (direct, OEM codepage decoding)
 - `gopkg.in/yaml.v3 v3.0.1` (indirect)

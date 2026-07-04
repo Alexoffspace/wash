@@ -39,7 +39,7 @@ curl -H "X-Auth-Token: 123" http://localhost:9091/api/status
   "os_version": "6.8.0-124-generic",
   "architecture": "amd64",
   "time": "2026-06-24 15:47:12 +04",
-  "uptime": "15:47:12 up 8 days, 7:30",
+  "uptime": "8d 7h 30m",
   "wash_status": {
     "status": "running",
     "version": "0.1.0",
@@ -71,6 +71,12 @@ curl -H "X-Auth-Token: 123" http://localhost:9091/api/status
   "user": "unknown"
 }
 ```
+
+**Notes**:
+- `cpu.usage_pct` — real CPU usage on Linux (`/proc/stat`) and Windows (WMI `Win32_Processor`); `-1` on macOS
+- `memory.total` / `memory.used` / `memory.free` — real system memory (not Go process memory); on Windows uses WMI `Win32_OperatingSystem`, on macOS uses `sysctl` + `vm_stat`
+- `uptime` — readable format (`Xd Xh Xm` or `Xh Xm`); on Windows calculated via WMI `Win32_OperatingSystem.LastBootUpTime`
+- `disk` — platform-specific (`disk_unix.go` / `disk_windows.go`)
 
 **Error Responses**:
 - `401` - Missing or invalid authentication

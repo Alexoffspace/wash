@@ -11,6 +11,10 @@ import (
 	"github.com/creack/pty"
 )
 
+func decodeConsoleOutput(data []byte) []byte {
+	return data
+}
+
 func NewSession(shellCommand, workDir string, rows, cols int) (*Session, error) {
 	if shellCommand == "" {
 		shellCommand = DefaultShell()

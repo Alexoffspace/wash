@@ -92,15 +92,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- HTTPS/TLS support (requires reverse proxy configuration)
-- Role-based access control (RBAC)
-- Command logging and audit trail
-- Multi-user session sharing
-- File upload/download via WebSocket
-- Command autocomplete suggestions
-- Syntax highlighting for output
-- Keyboard shortcuts documentation
-- Docker container support
-- Systemd service configuration
-- Windows service installation
+### Added
+- Windows ConPTY support (`CreatePseudoConsole`) with UTF-16↔UTF-8 conversion and OEM/ANSI codepage decoding
+- Real CPU usage on Windows via WMI (`Win32_Processor`)
+- Real system memory on Windows via WMI (`Win32_OperatingSystem`)
+- Real system uptime on Windows (seconds → readable format)
+- macOS memory info via `sysctl` + `vm_stat`
+- BOM (UTF-8 BOM) stripping in `config.yaml` and `.env` loading
+- `windowsMode: true` in xterm.js for correct Ctrl+C/V behavior on Windows
+- Unit tests for API package (`pkg/api/api_test.go`)
+- Integration test validation for `/api/status` JSON response fields
+
+### Changed
+- `go.mod`: Go version bumped to 1.25; added `golang.org/x/sys` and `golang.org/x/text` dependencies
+- `pkg/shell/shell.go`: `RunCommand` uses `-Command` flag on Windows and decodes OEM codepage output
+- `pkg/shell/session_windows.go`: Complete rewrite — ConPTY support with pipe fallback, line editing, environment setup
+- `pkg/api/api.go`: Cross-platform metrics — Windows CPU/memory/uptime via WMI, macOS memory via sysctl+vm_stat
+- `pkg/config/config.go`: BOM-safe YAML and .env parsing
+- `setup-linux.sh` / `setup-windows.ps1`: Removed service installation (now build-only scripts)
+
+### Infrastructure
+- Added `golang.org/x/sys v0.46.0` for Windows API calls
+- Added `golang.org/x/text v0.38.0` for OEM/ANSI codepage decoding

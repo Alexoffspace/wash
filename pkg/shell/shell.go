@@ -22,11 +22,21 @@ type CommandOutput struct {
 }
 
 func RunCommand(cmd string, workDir string) (*CommandOutput, error) {
-	c := exec.Command(DefaultShell(), "-c", cmd)
+	shellFlag := "-c"
+	if runtime.GOOS == "windows" {
+		shellFlag = "-Command"
+	}
+	c := exec.Command(DefaultShell(), shellFlag, cmd)
 	if workDir != "" {
 		c.Dir = workDir
 	}
+	if runtime.GOOS == "windows" {
+		c.Env = append(os.Environ(), "LANG=en_US.UTF-8")
+	}
 	output, err := c.CombinedOutput()
+	if runtime.GOOS == "windows" {
+		output = decodeConsoleOutput(output)
+	}
 	if err != nil {
 		return &CommandOutput{
 			Stdout:   "",
