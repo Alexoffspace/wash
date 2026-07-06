@@ -99,14 +99,22 @@ generate_config() {
   local work_dir=""
 
   prompt_yn "y" "Enable OS authentication?" && os_auth="true" || os_auth="false"
-  token_env=$(prompt_val "Token env var name" "$token_env")
-  [[ -z "$token_env" ]] && token_env="WASH_TOKEN"
-  prompt_yn "n" "Set token value in .env?" && set_token="true" || set_token="false"
-  if [[ "$set_token" == "true" ]]; then
-    echo ""
-    token_val=$(prompt_silent "Token value")
-    echo ""
-    [[ -z "$token_val" ]] && { fail "Token cannot be empty"; return 1; }
+  local enable_token="true"
+  if prompt_yn "y" "Enable token authentication?"; then
+    token_env=$(prompt_val "Token env var name" "$token_env")
+    [[ -z "$token_env" ]] && token_env="WASH_TOKEN"
+    prompt_yn "n" "Set token value in .env?" && set_token="true" || set_token="false"
+    if [[ "$set_token" == "true" ]]; then
+      echo ""
+      token_val=$(prompt_silent "Token value")
+      echo ""
+      [[ -z "$token_val" ]] && { fail "Token cannot be empty"; return 1; }
+    fi
+  else
+    enable_token="false"
+    token_env=""
+    set_token="false"
+    token_val=""
   fi
   port=$(prompt_val "Port" "$port")
   prompt_yn "n" "Listen on 0.0.0.0?" && allow_0="true" || allow_0="false"
@@ -142,7 +150,7 @@ work_dir: ${work_dir}
 YAML
   ok "config.yaml written"
 
-  if [[ "$set_token" == "true" && -n "$token_val" ]]; then
+  if [[ "$enable_token" == "true" && "$set_token" == "true" && -n "$token_val" ]]; then
     cat > .env <<ENV
 ${token_env}=${token_val}
 ENV

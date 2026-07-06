@@ -50,7 +50,7 @@ Enter your token (or OS credentials) and click Connect to access the xterm.js te
 
 ## Features
 
-- ✅ **Setup scripts** — interactive TUI for Linux (`setup-linux.sh`) and Windows (`setup-windows.ps1`) with auto-install of Go and config generation
+- ✅ **Setup scripts** — interactive TUI for Linux (`setup-linux.sh`) and Windows (`setup-windows.ps1`) with auto-install of Go, config generation, and optional token/OS auth toggles
 - ✅ Cross-platform support (Linux, macOS, Windows)
 - ✅ Interactive PTY-based shell via WebSocket with xterm.js
 - ✅ Windows ConPTY support with OEM/ANSI codepage decoding
@@ -58,7 +58,7 @@ Enter your token (or OS credentials) and click Connect to access the xterm.js te
 - ✅ Configurable shell (sh, bash, zsh, fish) via config.yaml
 - ✅ REST API for scripted command execution
 - ✅ Token-based authentication
-- ✅ OS user/password authentication (Linux `su`, Windows PowerShell)
+- ✅ OS user/password authentication (Linux `su`, Windows `LogonUser`)
 - ✅ Graceful shutdown on SIGINT/SIGTERM
 - ✅ Multiple concurrent sessions
 - ✅ Native WebSocket keepalive (PingMessage every 30s)

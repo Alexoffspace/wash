@@ -93,7 +93,7 @@ The application runs as a standalone HTTP server and supports both token-based a
 - Configurable shell (sh, bash, zsh, fish, etc.) via config.yaml
 - REST API for scripted command execution
 - Token-based authentication
-- OS user/password authentication (Linux `su`, Windows PowerShell)
+- OS user/password authentication (Linux `su`, Windows `LogonUser`)
 - Graceful shutdown on SIGINT/SIGTERM
 - Multiple concurrent sessions
 - Automatic ping/keep-alive (native WebSocket PingMessage every 30s)
@@ -311,6 +311,6 @@ go test ./...
 2. **Configure CORS.** The WebSocket upgrader validates origins: in localhost mode only loopback origins are accepted; in `-allow-0` mode the request host must match the origin. For production behind a reverse proxy, ensure `X-Forwarded-Host` is set correctly.
 3. **Strong tokens.** Use long, random tokens. Never use weak or guessable values.
 4. **Protect .env file.** Ensure `.env` is not committed to version control and has proper file permissions.
-5. **OS auth caution.** OS user/password authentication via `su` on Linux has limitations (reads password from stdin). On Windows, password verification is limited.
+5. **OS auth caution.** OS user/password authentication via `su` on Linux has limitations (reads password from stdin). On Windows, native `LogonUser` API is used (no command-line password exposure).
 6. **Input validation.** Shell commands are executed directly — sanitize all inputs from untrusted sources.
 7. **Session limits.** There is no built-in limit on concurrent sessions. Monitor resource usage.

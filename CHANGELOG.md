@@ -102,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `windowsMode: true` in xterm.js for correct Ctrl+C/V behavior on Windows
 - Unit tests for API package (`pkg/api/api_test.go`)
 - Integration test validation for `/api/status` JSON response fields
+- Setup scripts: `Enable token authentication?` prompt — allows disabling token auth entirely (token: "" in config)
 
 ### Changed
 - `go.mod`: Go version bumped to 1.25; added `golang.org/x/sys` and `golang.org/x/text` dependencies

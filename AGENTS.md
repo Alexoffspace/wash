@@ -7,7 +7,7 @@ Single-module Go 1.25 app (`module WASH`). Entrypoint: `main.go`. Embedded web U
 ```
 go build -o WASH
 ./WASH -token=SECRET -port=9091         # token auth
-./WASH -os-auth -port=9091               # OS auth (su/PowerShell)
+./WASH -os-auth -port=9091               # OS auth (su/LogonUserW)
 ./WASH -token=TOKEN1,TOKEN2 -os-auth -allow-0   # both + all interfaces
 ```
 
@@ -47,7 +47,7 @@ go vet ./...
 | Package | File | Role |
 |---------|------|------|
 | `pkg/config` | `config.go` | YAML + .env loader (BOM-safe) |
-| `pkg/auth` | `auth.go` | Token + OS auth (su/PowerShell) |
+| `pkg/auth` | `auth.go` | Token + OS auth (su/LogonUserW) |
 | `pkg/shell` | `shell.go` | `RunCommand` (one-shot) + `Session` interface |
 | `pkg/shell` | `session_unix.go` | Unix PTY session (creack/pty) |
 | `pkg/shell` | `session_windows.go` | Windows session (ConPTY + pipe fallback, OEM codepage decoding) |

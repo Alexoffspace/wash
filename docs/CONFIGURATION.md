@@ -48,7 +48,7 @@ allow_0: true
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `os_auth` | boolean | `false` | Enable OS user/password authentication |
-| `token` | string | `""` | Environment variable name containing the auth token |
+| `token` | string | `""` | Environment variable name containing the auth token. Set to empty (`""`) to disable token authentication entirely |
 | `port` | integer | `8080` | HTTP server port |
 | `allow_0` | boolean | `false` | Listen on all interfaces (0.0.0.0) instead of localhost (127.0.0.1) |
 | `work_dir` | string | `""` | Working directory for shell sessions and commands (default: user's home directory) |
@@ -91,11 +91,12 @@ WASH_TOKEN=dev_token_123
 ./WASH
 ```
 
-### Example 2: Production with OS authentication
+### Example 2: Token-free OS authentication only
 
 **config.yaml:**
 ```yaml
 os_auth: true
+token: ""
 port: 9091
 allow_0: true
 # work_dir: /var/wash
@@ -107,7 +108,23 @@ allow_0: true
 ./WASH
 ```
 
-### Example 3: CLI overrides config
+### Example 3: No authentication (development only)
+
+**config.yaml:**
+```yaml
+os_auth: false
+token: ""
+port: 9091
+allow_0: false
+# shell: bash
+```
+
+**Run:**
+```bash
+./WASH
+```
+
+### Example 4: CLI overrides config
 
 **config.yaml:**
 ```yaml

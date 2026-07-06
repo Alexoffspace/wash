@@ -105,17 +105,24 @@ function Generate-Config {
   $work_dir = ""
 
   if (Prompt-YN "y" "Enable OS authentication?") { $os_auth = "true" } else { $os_auth = "false" }
-  $token_env = Prompt-Val "Token env var name" $token_env
-  if ([string]::IsNullOrEmpty($token_env)) { $token_env = "WASH_TOKEN" }
-  $set_token = Prompt-YN "n" "Set token value in .env?"
-  if ($set_token) {
-    Write-Host ""
-    $token_val = Read-Host -Prompt "  Token value" -AsSecureString
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($token_val)
-    $token_val = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    Write-Host ""
-    if ([string]::IsNullOrEmpty($token_val)) { Fail "Token cannot be empty"; return $false }
+  $enable_token = Prompt-YN "y" "Enable token authentication?"
+  if ($enable_token) {
+    $token_env = Prompt-Val "Token env var name" $token_env
+    if ([string]::IsNullOrEmpty($token_env)) { $token_env = "WASH_TOKEN" }
+    $set_token = Prompt-YN "n" "Set token value in .env?"
+    if ($set_token) {
+      Write-Host ""
+      $token_val = Read-Host -Prompt "  Token value" -AsSecureString
+      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($token_val)
+      $token_val = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+      [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+      Write-Host ""
+      if ([string]::IsNullOrEmpty($token_val)) { Fail "Token cannot be empty"; return $false }
+    }
+  } else {
+    $token_env = ""
+    $set_token = $false
+    $token_val = ""
   }
   $port = Prompt-Val "Port" $port
   if (Prompt-YN "n" "Listen on 0.0.0.0?") { $allow_0 = "true" } else { $allow_0 = "false" }
@@ -150,7 +157,7 @@ work_dir: ${work_dir}
 
   Ok "config.yaml written"
 
-  if ($set_token -and -not [string]::IsNullOrEmpty($token_val)) {
+  if ($enable_token -and $set_token -and -not [string]::IsNullOrEmpty($token_val)) {
     @"
 ${token_env}=${token_val}
 "@ | Out-File -FilePath .env -Encoding utf8

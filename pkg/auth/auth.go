@@ -2,10 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"log"
-	"os/exec"
-	"runtime"
-	"strings"
 )
 
 // Credentials represents authorization credentials
@@ -69,61 +65,6 @@ func (a *Authenticator) Authenticate(user string, password string) (string, erro
 	}
 
 	return "", fmt.Errorf("empty credentials")
-}
-
-// verifyOSUser checks the user via the OS
-func (a *Authenticator) verifyOSUser(username, password string) bool {
-	if username == "" || password == "" {
-		return false
-	}
-
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		// Windows: verify password using runas (requires elevation) or PowerShell
-		// Use PowerShell to validate credentials
-		// Note: This requires the user to be in the system, and uses DirectoryServices
-		cmd = exec.Command("powershell", "-Command",
-			fmt.Sprintf(`
-$username = '%s'
-$password = '%s'
-$domain = $env:USERDOMAIN
-try {
-    $cred = New-Object System.Management.Automation.PSCredential("$domain\$username", (ConvertTo-SecureString $password -AsPlainText -Force))
-    $null = New-Object DirectoryServices.DirectoryEntry("", "$domain\$username", $password)
-    exit 0
-} catch {
-    exit 1
-}
-`, escapeWindowsString(username), escapeWindowsString(password)))
-		err := cmd.Run()
-		if err != nil {
-			log.Printf("OS auth: Windows credential verification failed for user '%s'", username)
-			return false
-		}
-		log.Printf("OS auth: Windows user '%s' authenticated successfully", username)
-		return true
-	}
-
-	// Linux: verify password via su
-	cmd = exec.Command("su", "-c", "echo ok", username)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return false
-	}
-	stdin.Write([]byte(password + "\n"))
-	stdin.Close()
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return false
-	}
-
-	return strings.Contains(string(output), "ok")
-}
-
-// escapeWindowsString escapes special characters for Windows PowerShell
-func escapeWindowsString(s string) string {
-	// Escape single quotes by doubling them
-	return strings.ReplaceAll(s, "'", "''")
 }
 
 // HasTokenAuth returns true if tokens are loaded

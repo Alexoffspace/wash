@@ -292,7 +292,7 @@ Command-line flag:
 
 1. ~~**WebSocket output streaming** - 10ms timeout issue~~ ✅ Fixed (PTY-based now)
 2. ~~**Rate limiting** - Not enforced~~ ✅ Fixed
-3. **Windows OS auth** - Limited verification
+3. ~~**Windows OS auth** - Limited verification~~ ✅ Fixed (native LogonUser API)
 4. **Session limits** - No built-in limit on concurrent sessions
 5. **Input validation** - Commands executed directly (no sanitization)
 

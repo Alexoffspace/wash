@@ -409,7 +409,7 @@ Note: server uses native WebSocket PingMessage for keepalive (every 30s). No nee
 ### Authentication
 
 - **Tokens** are stored in the `WASH_TOKEN` environment variable (loaded from `.env` or config)
-- **OS Authentication** uses the system's authentication mechanism (`su` on Linux, PowerShell on Windows)
+- **OS Authentication** uses the system's authentication mechanism (`su` on Linux, `LogonUser` on Windows)
 - Credentials are **not** transmitted in plaintext over HTTP (use HTTPS in production)
 
 ### Rate Limiting
@@ -448,7 +448,7 @@ Note: server uses native WebSocket PingMessage for keepalive (every 30s). No nee
 ./WASH -os-auth -port=8080
 ```
 
-- `-os-auth` - Enable OS authentication (PAM/su)
+- `-os-auth` - Enable OS authentication (PAM/su, LogonUser on Windows)
 - `-token` - Comma-separated list of valid auth tokens
 - `-allow-0` - Listen on all network interfaces (`0.0.0.0`)
 - `-max-msg-size` - Maximum WebSocket message size in bytes (default: 1048576 / 1 MB)
