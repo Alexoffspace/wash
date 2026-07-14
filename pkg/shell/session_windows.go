@@ -3,7 +3,6 @@
 package shell
 
 import (
-	"bytes"
 	"io"
 	"os"
 	"os/exec"
@@ -26,13 +25,13 @@ import (
 var kernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
 var (
-	procCreatePseudoConsole         = kernel32.NewProc("CreatePseudoConsole")
-	procResizePseudoConsole         = kernel32.NewProc("ResizePseudoConsole")
-	procClosePseudoConsole          = kernel32.NewProc("ClosePseudoConsole")
-	procGetConsoleOutputCP          = kernel32.NewProc("GetConsoleOutputCP")
+	procCreatePseudoConsole             = kernel32.NewProc("CreatePseudoConsole")
+	procResizePseudoConsole             = kernel32.NewProc("ResizePseudoConsole")
+	procClosePseudoConsole              = kernel32.NewProc("ClosePseudoConsole")
+	procGetConsoleOutputCP              = kernel32.NewProc("GetConsoleOutputCP")
 	procInitializeProcThreadAttributeList = kernel32.NewProc("InitializeProcThreadAttributeList")
-	procUpdateProcThreadAttribute   = kernel32.NewProc("UpdateProcThreadAttribute")
-	procDeleteProcThreadAttributeList    = kernel32.NewProc("DeleteProcThreadAttributeList")
+	procUpdateProcThreadAttribute       = kernel32.NewProc("UpdateProcThreadAttribute")
+	procDeleteProcThreadAttributeList   = kernel32.NewProc("DeleteProcThreadAttributeList")
 )
 
 const (
@@ -48,11 +47,11 @@ type startupInfoEx struct {
 // ---------- ConPTY ----------
 
 type conPty struct {
-	hPC          windows.Handle
-	hInputWrite  windows.Handle
-	hOutputRead  windows.Handle
-	attrListBuf  []byte
-	procHandle   windows.Handle
+	hPC         windows.Handle
+	hInputWrite windows.Handle
+	hOutputRead windows.Handle
+	attrListBuf []byte
+	procHandle  windows.Handle
 }
 
 func newConPty(cols, rows int16) (*conPty, error) {
@@ -113,8 +112,15 @@ func (c *conPty) Read(b []byte) (int, error) {
 }
 
 func (c *conPty) Write(b []byte) (int, error) {
-	// ConPTY input expects UTF-16LE. Normalize LF→CR (Enter key).
-	normalized := bytes.ReplaceAll(b, []byte{'\n'}, []byte{'\r'})
+	normalized := make([]byte, 0, len(b))
+	for i := 0; i < len(b); i++ {
+		if b[i] == '\n' && (i == 0 || b[i-1] != '\r') {
+			normalized = append(normalized, '\r')
+		} else {
+			normalized = append(normalized, b[i])
+		}
+	}
+
 	runes := []rune(string(normalized))
 	u16 := utf16.Encode(runes)
 	u16bytes := unsafe.Slice((*byte)(unsafe.Pointer(&u16[0])), len(u16)*2)
@@ -127,22 +133,37 @@ func (c *conPty) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (c *conPty) Close() error {
-	procClosePseudoConsole.Call(uintptr(c.hPC))
-	if c.procHandle != 0 {
-		windows.TerminateProcess(c.procHandle, 1)
-		windows.CloseHandle(c.procHandle)
+func (c *conPty) sendEncodingInit(shellCommand string) {
+	name := strings.ToLower(shellCommand)
+	switch {
+	case strings.Contains(name, "cmd"):
+		c.Write([]byte("chcp 65001 > nul\r"))
+	case strings.Contains(name, "powershell"):
+		c.Write([]byte("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\r"))
 	}
-	windows.CloseHandle(c.hInputWrite)
-	windows.CloseHandle(c.hOutputRead)
-	if len(c.attrListBuf) > 0 {
-		procDeleteProcThreadAttributeList.Call(uintptr(unsafe.Pointer(&c.attrListBuf[0])))
-	}
-	return nil
 }
 
-func (c *conPty) Resize(cols, rows int16) error {
-	procResizePseudoConsole.Call(uintptr(c.hPC), uintptr(uint32(uint16(rows))<<16|uint32(uint16(cols))))
+func (c *conPty) Close() error {
+	if c.hPC != 0 {
+		procClosePseudoConsole.Call(uintptr(c.hPC))
+		c.hPC = 0
+	}
+	if c.procHandle != 0 {
+		windows.CloseHandle(c.procHandle)
+		c.procHandle = 0
+	}
+	if c.hInputWrite != 0 {
+		windows.CloseHandle(c.hInputWrite)
+		c.hInputWrite = 0
+	}
+	if c.hOutputRead != 0 {
+		windows.CloseHandle(c.hOutputRead)
+		c.hOutputRead = 0
+	}
+	if len(c.attrListBuf) > 0 {
+		procDeleteProcThreadAttributeList.Call(uintptr(unsafe.Pointer(&c.attrListBuf[0])))
+		c.attrListBuf = nil
+	}
 	return nil
 }
 
@@ -184,7 +205,7 @@ func (c *conPty) startProcess(shellCommand, workDir string) error {
 	}
 
 	siEx := startupInfoEx{
-		StartupInfo: windows.StartupInfo{Flags: extendedStartupInfoPresent},
+		StartupInfo:   windows.StartupInfo{Flags: extendedStartupInfoPresent},
 		AttributeList: uintptr(unsafe.Pointer(&c.attrListBuf[0])),
 	}
 	siEx.StartupInfo.Cb = uint32(unsafe.Sizeof(siEx))
@@ -221,84 +242,95 @@ func (c *conPty) cleanupAttrList() {
 	}
 }
 
-// ---------- Pipe fallback ----------
+// ---------- Session creation ----------
 
-type pipeSession struct {
-	stdin  io.WriteCloser
-	stdout io.Reader
+func NewSession(shellCommand, workDir string, rows, cols int) (*Session, error) {
+	if rows <= 0 {
+		rows = 24
+	}
+	if cols <= 0 {
+		cols = 80
+	}
+	if shellCommand == "" {
+		shellCommand = DefaultShell()
+	}
+
+	return newConPtySession(shellCommand, workDir, rows, cols)
 }
 
-func (p *pipeSession) Read(b []byte) (int, error) { return p.stdout.Read(b) }
+func newConPtySession(shellCommand, workDir string, rows, cols int) (*Session, error) {
+	cp, err := newConPty(int16(cols), int16(rows))
+	if err != nil {
+		return nil, err
+	}
 
-func (p *pipeSession) Write(b []byte) (int, error) {
-	return p.stdin.Write(b)
+	if err := cp.startProcess(shellCommand, workDir); err != nil {
+		cp.Close()
+		return nil, err
+	}
+
+	cp.sendEncodingInit(shellCommand)
+
+	output := make(chan []byte, 256)
+	done := make(chan struct{})
+
+	session := &Session{
+		ptty:   cp,
+		output: output,
+		done:   done,
+	}
+
+	go session.readLoop()
+	go waitProcessExit(cp, done)
+
+	return session, nil
 }
 
-func (p *pipeSession) Close() error {
-	p.stdin.Close()
-	if c, ok := p.stdout.(io.Closer); ok {
-		c.Close()
+func waitProcessExit(cp *conPty, done chan struct{}) {
+	defer close(done)
+	windows.WaitForSingleObject(cp.procHandle, windows.INFINITE)
+}
+
+// ---------- Session methods ----------
+
+func (s *Session) Resize(rows, cols int) error {
+	if rows <= 0 {
+		rows = 24
+	}
+	if cols <= 0 {
+		cols = 80
+	}
+	if cp, ok := s.ptty.(*conPty); ok {
+		return cp.Resize(int16(cols), int16(rows))
 	}
 	return nil
 }
 
-type lineWriter struct {
-	ptty    io.ReadWriteCloser
-	output  chan<- []byte
-	lineBuf []byte
-}
-
-func (w *lineWriter) Read(b []byte) (int, error) { return w.ptty.Read(b) }
-
-func (w *lineWriter) Write(b []byte) (int, error) {
-	for i := 0; i < len(b); i++ {
-		ch := b[i]
-		switch {
-		case ch == 0x7f:
-			if len(w.lineBuf) > 0 {
-				// remove last rune from lineBuf
-				_, size := utf8.DecodeLastRune(w.lineBuf)
-				w.lineBuf = w.lineBuf[:len(w.lineBuf)-size]
-				for j := 0; j < size; j++ {
-					w.output <- []byte{'\b', ' ', '\b'}
-				}
-			}
-
-		case ch == 0x03:
-			w.ptty.Write([]byte{'\n'})
-			w.output <- []byte("^C\r\n")
-			w.lineBuf = nil
-
-		case ch == '\r' || ch == '\n':
-			if len(w.lineBuf) == 0 {
-				w.output <- []byte{'\r', '\n'}
-				break
-			}
-			line := make([]byte, len(w.lineBuf)+1)
-			copy(line, w.lineBuf)
-			line[len(line)-1] = '\n'
-			w.ptty.Write(line)
-			w.output <- []byte{'\r', '\n'}
-			w.lineBuf = nil
-
-		default:
-			r, size := utf8.DecodeRune(b[i:])
-			if r == utf8.RuneError && size <= 1 {
-				w.lineBuf = append(w.lineBuf, ch)
-				w.output <- []byte{ch}
-				break
-			}
-			w.lineBuf = append(w.lineBuf, b[i:i+size]...)
-			w.output <- b[i : i+size]
-			i += size - 1
-		}
+func (s *Session) Close() {
+	if s.closed {
+		return
 	}
-	return len(b), nil
+	s.closed = true
+
+	_ = s.ptty.Close()
+
+	if s.cmd != nil && s.cmd.Process != nil {
+		s.cmd.Process.Kill()
+	}
+	select {
+	case <-s.done:
+	case <-time.After(5 * time.Second):
+	}
 }
 
-func (w *lineWriter) Close() error { return w.ptty.Close() }
+// ---------- Resize helper ----------
 
-// ---------- Helpers ----------
+func (c *conPty) Resize(cols, rows int16) error {
+	procResizePseudoConsole.Call(uintptr(c.hPC), uintptr(uint32(uint16(rows))<<16|uint32(uint16(cols))))
+	return nil
+}
+
+// ---------- Codepage helpers (for RunCommand) ----------
 
 func getConsoleOutputCP() int {
 	ret, _, _ := procGetConsoleOutputCP.Call()
@@ -417,157 +449,4 @@ func buildWindowsEnvStr() []uint16 {
 	}
 	buf = append(buf, 0)
 	return buf
-}
-
-// ---------- Session creation ----------
-
-func NewSession(shellCommand, workDir string, rows, cols int) (*Session, error) {
-	if rows <= 0 {
-		rows = 24
-	}
-	if cols <= 0 {
-		cols = 80
-	}
-
-	session, err := sessionFromPipes(shellCommand, workDir)
-	if err == nil {
-		return session, nil
-	}
-
-	ptty, err := tryConPty(shellCommand, workDir, rows, cols)
-	if err == nil {
-		return sessionFromPty(ptty), nil
-	}
-
-	return nil, err
-}
-
-func tryConPty(shellCommand, workDir string, rows, cols int) (io.ReadWriteCloser, error) {
-	if shellCommand == "" {
-		shellCommand = DefaultShell()
-	}
-	cp, err := newConPty(int16(cols), int16(rows))
-	if err != nil {
-		return nil, err
-	}
-	if err := cp.startProcess(shellCommand, workDir); err != nil {
-		cp.Close()
-		return nil, err
-	}
-	return cp, nil
-}
-
-func sessionFromPty(ptty io.ReadWriteCloser) *Session {
-	output := make(chan []byte, 256)
-	done := make(chan struct{})
-	session := &Session{ptty: ptty, output: output, done: done}
-
-	go session.readLoop()
-
-	if c, ok := ptty.(*conPty); ok {
-		go func() {
-			windows.WaitForSingleObject(c.procHandle, windows.INFINITE)
-			close(done)
-		}()
-	}
-	return session
-}
-
-func sessionFromPipes(shellCommand, workDir string) (*Session, error) {
-	if shellCommand == "" {
-		shellCommand = DefaultShell()
-	}
-
-	cmd := exec.Command(shellCommand)
-	if workDir != "" {
-		cmd.Dir = workDir
-	}
-
-	stdinR, stdinW, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	stdoutR, stdoutW, err := os.Pipe()
-	if err != nil {
-		stdinR.Close()
-		stdinW.Close()
-		return nil, err
-	}
-
-	cmd.Stdin = stdinR
-	cmd.Stdout = stdoutW
-	cmd.Stderr = stdoutW
-	cmd.Env = append(os.Environ(), "LANG=en_US.UTF-8", "TERM=xterm-256color")
-
-	if err := cmd.Start(); err != nil {
-		stdinR.Close()
-		stdinW.Close()
-		stdoutR.Close()
-		stdoutW.Close()
-		return nil, err
-	}
-	stdinR.Close()
-	stdoutW.Close()
-
-	// Decode OEM/ANSI codepage to UTF-8
-	cp := getOEMCP()
-	if cp == 65001 || cp == 0 {
-		cp = getACP()
-	}
-	var stdout io.Reader = stdoutR
-	if cp != 65001 && cp != 0 {
-		dec := decoderForCP(cp)
-		if dec != nil {
-			stdout = transform.NewReader(stdoutR, dec)
-		}
-	}
-
-	output := make(chan []byte, 256)
-	done := make(chan struct{})
-
-	ps := &pipeSession{stdin: stdinW, stdout: stdout}
-	ptty := &lineWriter{ptty: ps, output: output}
-
-	session := &Session{
-		cmd:    cmd,
-		ptty:   ptty,
-		output: output,
-		done:   done,
-	}
-
-	go session.readLoop()
-	go func() {
-		cmd.Wait()
-		close(done)
-	}()
-
-	return session, nil
-}
-
-func (s *Session) Resize(rows, cols int) error {
-	if rows <= 0 {
-		rows = 24
-	}
-	if cols <= 0 {
-		cols = 80
-	}
-	if c, ok := s.ptty.(*conPty); ok {
-		return c.Resize(int16(cols), int16(rows))
-	}
-	return nil
-}
-
-func (s *Session) Close() {
-	if s.closed {
-		return
-	}
-	s.closed = true
-	_ = s.ptty.Close()
-	if s.cmd != nil && s.cmd.Process != nil {
-		s.cmd.Process.Kill()
-		select {
-		case <-s.done:
-		case <-time.After(3 * time.Second):
-		}
-	}
 }
